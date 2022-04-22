@@ -11,10 +11,10 @@ call init_star()
 call spawn(x,y,z,vx,vy,vz)
 
 !big loop
-do i = 1,Nsteps
+! do i = 1,Nsteps
 
-call propagate()
-call collide()
+! call propagate()
+! call collide()
 
 end do
 
