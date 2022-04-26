@@ -4,29 +4,31 @@ module star
 
   implicit none
 
-! Turns on analytic treatment of the temperature, density, potential
+
 ! Units: length = cm, time = s,energy = erg, mass = g
+! Turns on analytic treatment of the temperature, density, potential
   logical :: anTemp, anDens, anPot
+  integer nlines
   double precision, allocatable :: tab_mencl(:), tab_starrho(:), tab_mfr(:,:), tab_r(:), tab_vesc(:), tab_dr(:)
-  double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:)
-  double precision :: rhoSHO,rchi,Rsun
-  double precision, parameter :: pi = , CC = c0=2.99792458d10,GN = 6.672d-8,pi=3.141592653, mnuc = 0.938
+  double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:),tab_phi(:)
+  double precision :: rhoSHO,rchi,Rsun,mdm
+  double precision, parameter :: c0=2.99792458d10,GN = 6.672d-8,pi=3.141592653, mnuc = 0.938,mnucg = 1.66054d-24
   double precision, parameter :: hbarc = 1.97d-14,kb = 1.3807d-16
   !this goes with the Serenelli table format
   double precision :: AtomicNumber(29) !29 is is the number from the Serenelli files; if you have fewer it shouldn't matter
 
-
-
-
+!functions
+  ! double precision :: ndensity, temperature, potential
 
   contains
 
   subroutine init_star(anTempIn,anDensIn,anPotIn,mdm_in)
     logical, intent(in) :: anTempIn,anDensIn,anPotIn
     double precision mdm_in
-    integer nlines
     character*300 :: filename
     filename = "data/struct_b16_agss09_nohead.dat" !make this an input later on
+
+    print*,"Initializing star"
 
     mdm = mdm_in
 
@@ -34,50 +36,54 @@ module star
 !if anything is not analytic, load stellar data
     if ((.not. anTemp) .or. (.not. anDens) .or. (.not. anPot)) then
         call get_solar_params(filename,nlines)
+      else
+        Rsun = 69.57d9
       end if
 
     if (anPot) then
       rhoSHO = 148.9d0 !g/cm^3
-      rchi = sqrt(3.*kb*temperature(0)/(2.*pi*GN*rhoSHO*mdm))
+      rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*rhoSHO*mdm))
     end if
+    print*,"initialized star"
 
   end subroutine
 
   !Get number density of scatterers at radius r
     function ndensity(R,iso)
+      double precision ndensity
       double precision, intent(in):: R
+      double precision :: nnuc
       integer, intent(in) :: iso
       if (anDens) then
-
-
-    else
-
-    end if
-
-
+      nnuc = rhoSHO/mnucg
+      else
+      call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R,nnuc)
+      end if
+      ndensity = nnuc
   end function
 
 !get temperature at radius r
   function temperature(R)
-    double precision T
+     double precision, intent(in):: R
+    double precision :: T, temperature
     if (anTemp) then
      T = 1.5d6
     else
      call interp1(tab_r,tab_T,Nlines,R,T)
     end if
-    return T
+    temperature =  T
   end function
 
 !get potential at radius r
   function potential(R)
     double precision, intent(in):: R
-    double precision :: phi
+    double precision :: phi, potential
     if (anPot) then
       phi = 2.*pi*GN*rhoSHO*R**2/3.
     else
-
+      call interp1(tab_r,tab_phi,Nlines,R,phi)
     end if
-    return phi
+    potential =  phi
   end function
 
 
@@ -85,12 +91,12 @@ module star
 !loads solar parameters from file
   subroutine get_solar_params(filename,nlines)
           character*300 :: filename
-          double precision :: Pres, Lumi !these aren't used, but dummies are required
+          double precision :: Pres, Lumi,GMoverR !these aren't used, but dummies are required
           ! double precision, allocatable :: phi(:) !this is used briefly !now up top
           integer :: i,j, nlines,iostatus
 
           Rsun = 69.57d9 !this is set here, for other stars, this sub is not called
-
+          GMoverR=1.908e15
           !Get number of lines in the file
           open(99,file=filename)
           nlines=0
