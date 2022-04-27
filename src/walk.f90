@@ -130,9 +130,23 @@ end subroutine propagate
 
 
 
-subroutine collide()
+subroutine collide(x,v)
   use star
   implicit none
+  integer niso
+  double precision, :: x(3),v(3),vnuc(3),unuc,s(3),T,r
+  double precision, :: theta, phi !outgoing angles in COM frame
+!) select a species to collide with
+  niso = 1
+  !a little different from Hannah's method: we draw 3 nuclear velocities from a MB distribution
+  r = sqrt(sum(x**2))
+  T = temperature(r)
+  vnuc(1) = Sqrt(kB*T/mdm)*random_normal()
+  vnuc(2) = Sqrt(kB*T/mdm)*random_normal()
+  vnuc(3) = Sqrt(kB*T/mdm)*random_normal()
+
+! 2) Boost to CM frame
+s = (mdm*v + A(niso)*mnucg)/(mdm+A(niso)*mnucg)
 
 
 end subroutine collide

@@ -2,7 +2,7 @@ program cosmion
 use star
 implicit none
 
-double precision :: xi(3),vi(3),x(3),v(3),r !the DM coordinates
+double precision :: xi(3),vi(3),x(3),v(3),r,time !the DM coordinates
 double precision, parameter :: GeV = 1.78266d-24
 logical isinside_flag
 
@@ -41,8 +41,8 @@ print*,xi, vi
 
 ! big loop
 do i = 1,Nsteps
-call propagate(xi,vi,x,v)
-write(94,*) x(1),x(2),x(3), v(1),v(2),v(3)
+call propagate(xi,vi,x,v,time)
+write(94,*) x(1),x(2),x(3), v(1),v(2),v(3),time
 xi = x
 vi = v
 
