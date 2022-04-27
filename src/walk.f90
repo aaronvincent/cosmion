@@ -65,7 +65,9 @@ tau = -log(1.d0-a)
 phase_i = atan(-vin,OmegaSHO*xin)
 amplitude_i = xin/cos(phase_i)
 
-
+!this is where we call RKF45, passin the step sub
+!we need to modify it so that it ends at a given y, not t
+!we should also replace the external block with an interface,
 
 
 
@@ -91,7 +93,9 @@ subroutine step(t,y,yprime,phase_i,amplitude_i)
   vx = -amplitude_i*OmegaSHO*sin(OmegaSHO*t+phase_i)
 
 !this needs to be a loop if you have multiple species
+
   call omega(x,vx,phase_i,amplitude_i,y,yprime)
+
 
 end subroutine step
 
