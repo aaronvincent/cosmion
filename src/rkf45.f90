@@ -1,5 +1,5 @@
 subroutine fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
-!not used
+
 !*****************************************************************************80
 !
 !! FEHL takes one Fehlberg fourth-fifth order step (double precision).

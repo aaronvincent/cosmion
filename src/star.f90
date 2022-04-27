@@ -1,5 +1,6 @@
 
-
+!module with all the star properties
+!also contains DM mass and cross section
 module star
 
   implicit none
@@ -11,7 +12,7 @@ module star
   integer nlines
   double precision, allocatable :: tab_mencl(:), tab_starrho(:), tab_mfr(:,:), tab_r(:), tab_vesc(:), tab_dr(:)
   double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:),tab_phi(:)
-  double precision :: rhoSHO,rchi,Rsun,mdm,OmegaSHO
+  double precision :: rhoSHO,rchi,Rsun,mdm,OmegaSHO,sigSD,mu
   double precision, parameter :: c0=2.99792458d10,GN = 6.672d-8,pi=3.141592653, mnuc = 0.938,mnucg = 1.66054d-24
   double precision, parameter :: hbarc = 1.97d-14,kb = 1.3807d-16
   !this goes with the Serenelli table format
@@ -22,15 +23,17 @@ module star
 
   contains
 
-  subroutine init_star(anTempIn,anDensIn,anPotIn,mdm_in)
+  subroutine init_star(anTempIn,anDensIn,anPotIn,mdm_in,sigSD_in)
     logical, intent(in) :: anTempIn,anDensIn,anPotIn
-    double precision mdm_in
+    double precision, intent(in) :: mdm_in,sigSD_in
     character*300 :: filename
     filename = "data/struct_b16_agss09_nohead.dat" !make this an input later on
 
     print*,"Initializing star"
 
     mdm = mdm_in
+    sigSD = sigSD_in
+    mu = mdm/mnucg !this needs to be fixed for > 1 isotope
 
 
 !if anything is not analytic, load stellar data
@@ -61,20 +64,22 @@ module star
       call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R,nnuc)
       end if
       ndensity = nnuc
+    end function
+
+    function dndr(R,iso)
+  ! number density of scatterers at position r
+      double precision dndr
+      double precision, intent(in) :: R
+      integer, intent(in) :: iso
+      if (anDens) then
+      dndr = 0.d0
+      else
+      ! call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R,nnuc)
+      print*,"numerical density not implemented yet"
+      end if
+
   end function
 
-function dndr(R,iso)
-  ! number density of scatterers at position r
-  double precision dndr
-  double precision, intent(in) :: R
-  integer, intent(in) :: iso
-  f (anDens) then
-  nnuc = rhoSHO/mnucg
-  else
-  call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R,nnuc)
-  end if
-  ndensity = nnuc
-  end function
 !get temperature at radius r
   function temperature(R)
      double precision, intent(in):: R

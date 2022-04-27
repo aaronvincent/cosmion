@@ -1,5 +1,6 @@
 ! This is where the action lives
 ! Units are cgs, except mass
+! Follow the recipe: https://arxiv.org/abs/2111.06895
 
 
 subroutine spawn(x,y,z,vx,vy,vz)
@@ -79,35 +80,40 @@ subroutine collide()
 
 end subroutine collide
 
+  !this goes into the RK solver
+  !y in this subroutine is the function we're integrating (i.e. the optical depth, tau)
 subroutine step(t,y,yprime,phase_i,amplitude_i)
   implicit none
   double precision :: t, y, yprime
   double precision :: ri(3), vi(3)
-  double precision :: x(3),vx(3),accel(3) !the integrator does not need to know these
+  double precision :: x(3),vx(3) !the integrator does not need to know these
+  x = amplitude_i*cos(OmegaSHO*t+phase_i)
+  vx = -amplitude_i*OmegaSHO*sin(OmegaSHO*t+phase_i)
 
-
-  !this goes into the RK solver
-
+!this needs to be a loop if you have multiple species
+  call omega(x,vx,phase_i,amplitude_i,y,yprime)
 
 end subroutine step
 
-subroutine omega(xin,vin,phase_i,amplitude_i,omega_out,omegaprime_out)
+subroutine omega(xin,vin,phase_i,amplitude_i,omega,omegaprime)
+  !compute omega and its derivative given the position and velocity of a particle
+  !only scattering with a single species (hydrogen)
   use star
   implicit none
-double precision, intent(in) :: xin(3),vin(3),phase_i(3),amplitude_i(3)
-double precision :: vT,r,v,y
-r = sqrt(xin(1)**2+xin(2)**2+xin(3)**2)
-vT = sqrt(2.*kB*temperature(r)/mdm)
+  double precision, intent(in) :: xin(3),vin(3),phase_i(3),amplitude_i(3)
+  double precision :: vT,r,v2,y,omega,omegaprime,yprime,accel(3),wprefactor
+  r = sqrt(xin(1)**2+xin(2)**2+xin(3)**2)
+  vT = sqrt(2.*kB*temperature(r)/mdm)
+  v2 = vin(1)**2 + vin(2)**2 + vin(3)**2
+  y = sqrt(v2/mdm)
+  !niso = 1 = hydrogen hardcoded
+  wprefactor = 2.*sigSD*ndensity(r,1)*vT*sqrt(mu)
+  omega = wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+  accel = -OmegaSHO**2*xin
 
-
-
-!compute omega and its derivative given the position and velocity of a particle
-
-
-
-
-
-
+  yprime = 2.d0*sum(accel*vin)/mdm !y^2'
+  yprime = .5/y
+  omegaprime = dndr(r,1)/ndensity(r,1)*omega + yprime*wprefactor*(erf(y)*(1.-y**-2) + exp(-y**2)/sqrt(pi)/y)
 
 end subroutine omega
 
