@@ -1,4 +1,4 @@
-
+  
 !module with all the star properties
 !also contains DM mass and cross section
 module star

@@ -8,8 +8,8 @@ SRCDIR = ./src
 # RDIR = ./Rfunctions
 
 MAIN = cosmion.o
-MFSHR = star.o walk.o
-NUMFOBJ =  num.o
+MFSHR = init_conds.o star.o walk.o
+NUMFOBJ =  num.o rkf45.o
 
 
 

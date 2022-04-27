@@ -1,5 +1,7 @@
-subroutine fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
-
+subroutine fehl ( f, y, t, h, yp, f1, f2, f3, f4, f5, s )
+!Note Aaron Vincent modified to remove neqn entirely, changed external calls to interface blocks
+!Downloaded from https://people.sc.fsu.edu/~jburkardt/f_src/rkf45/rkf45.html
+!https://people.sc.fsu.edu/~jburkardt/f_src/rkf45/rkf45.f90
 !*****************************************************************************80
 !
 !! FEHL takes one Fehlberg fourth-fifth order step (double precision).
@@ -8,7 +10,7 @@ subroutine fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
 !
 !    This routine integrates a system of NEQN first order ordinary differential
 !    equations of the form
-!      dY(i)/dT = F(T,Y(1:NEQN))
+!      dY(i)/dT = F(T,Y)
 !    where the initial values Y and the initial derivatives
 !    YP are specified at the starting point T.
 !
@@ -57,7 +59,7 @@ subroutine fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
 !
 !    Input, integer NEQN, the number of equations to be integrated.
 !
-!    Input, real ( kind = rk ) Y(NEQN), the current value of the
+!    Input, real ( kind = rk ) Y, the current value of the
 !    dependent variable.
 !
 !    Input, real ( kind = rk ) T, the current value of the independent
@@ -65,72 +67,81 @@ subroutine fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
 !
 !    Input, real ( kind = rk ) H, the step size to take.
 !
-!    Input, real ( kind = rk ) YP(NEQN), the current value of the
+!    Input, real ( kind = rk ) YP, the current value of the
 !    derivative of the dependent variable.
 !
-!    Output, real ( kind = rk ) F1(NEQN), F2(NEQN), F3(NEQN), F4(NEQN),
-!    F5(NEQN), derivative values needed for the computation.
+!    Output, real ( kind = rk ) F1, F2, F3, F4,
+!    F5, derivative values needed for the computation.
 !
-!    Output, real ( kind = rk ) S(NEQN), the estimate of the solution at T+H.
+!    Output, real ( kind = rk ) S, the estimate of the solution at T+H.
 !
   implicit none
-
+interface
+  subroutine f(t,y,yp)
+    !should be rk kind but whatever
+    double precision, intent(in) :: t,y
+    double precision, intent(out) :: yp
+  end subroutine
+  end interface
   integer, parameter :: rk = kind ( 1.0D+00 )
 
-  integer neqn
+   integer neqn
+
 
   real ( kind = rk ) ch
-  external f
-  real ( kind = rk ) f1(neqn)
-  real ( kind = rk ) f2(neqn)
-  real ( kind = rk ) f3(neqn)
-  real ( kind = rk ) f4(neqn)
-  real ( kind = rk ) f5(neqn)
+  ! external f
+  real ( kind = rk ) f1
+  real ( kind = rk ) f2
+  real ( kind = rk ) f3
+  real ( kind = rk ) f4
+  real ( kind = rk ) f5
   real ( kind = rk ) h
-  real ( kind = rk ) s(neqn)
+  real ( kind = rk ) s
   real ( kind = rk ) t
-  real ( kind = rk ) y(neqn)
-  real ( kind = rk ) yp(neqn)
+  real ( kind = rk ) y
+  real ( kind = rk ) yp
+
+  neqn = 1 !hardcoded number of equations to 1
 
   ch = h / 4.0D+00
 
-  f5(1:neqn) = y(1:neqn) + ch * yp(1:neqn)
+  f5 = y + ch * yp
 
   call f ( t + ch, f5, f1 )
 
   ch = 3.0D+00 * h / 32.0D+00
 
-  f5(1:neqn) = y(1:neqn) + ch * ( yp(1:neqn) + 3.0D+00 * f1(1:neqn) )
+  f5 = y + ch * ( yp + 3.0D+00 * f1 )
 
   call f ( t + 3.0D+00 * h / 8.0D+00, f5, f2 )
 
   ch = h / 2197.0D+00
 
-  f5(1:neqn) = y(1:neqn) + ch * &
-  ( 1932.0D+00 * yp(1:neqn) &
-  + ( 7296.0D+00 * f2(1:neqn) - 7200.0D+00 * f1(1:neqn) ) &
+  f5 = y + ch * &
+  ( 1932.0D+00 * yp &
+  + ( 7296.0D+00 * f2 - 7200.0D+00 * f1 ) &
   )
 
   call f ( t + 12.0D+00 * h / 13.0D+00, f5, f3 )
 
   ch = h / 4104.0D+00
 
-  f5(1:neqn) = y(1:neqn) + ch * &
+  f5 = y + ch * &
   ( &
-    ( 8341.0D+00 * yp(1:neqn) - 845.0D+00 * f3(1:neqn) ) &
-  + ( 29440.0D+00 * f2(1:neqn) - 32832.0D+00 * f1(1:neqn) ) &
+    ( 8341.0D+00 * yp - 845.0D+00 * f3 ) &
+  + ( 29440.0D+00 * f2 - 32832.0D+00 * f1 ) &
   )
 
   call f ( t + h, f5, f4 )
 
   ch = h / 20520.0D+00
 
-  f1(1:neqn) = y(1:neqn) + ch * &
+  f1 = y + ch * &
   ( &
-    ( -6080.0D+00 * yp(1:neqn) &
-    + ( 9295.0D+00 * f3(1:neqn) - 5643.0D+00 * f4(1:neqn) ) &
+    ( -6080.0D+00 * yp &
+    + ( 9295.0D+00 * f3 - 5643.0D+00 * f4 ) &
     ) &
-  + ( 41040.0D+00 * f1(1:neqn) - 28352.0D+00 * f2(1:neqn) ) &
+  + ( 41040.0D+00 * f1 - 28352.0D+00 * f2 ) &
   )
 
   call f ( t + h / 2.0D+00, f1, f5 )
@@ -139,16 +150,16 @@ subroutine fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
 !
   ch = h / 7618050.0D+00
 
-  s(1:neqn) = y(1:neqn) + ch * &
+  s = y + ch * &
   ( &
-    ( 902880.0D+00 * yp(1:neqn) &
-    + ( 3855735.0D+00 * f3(1:neqn) - 1371249.0D+00 * f4(1:neqn) ) ) &
-  + ( 3953664.0D+00 * f2(1:neqn) + 277020.0D+00 * f5(1:neqn) ) &
+    ( 902880.0D+00 * yp &
+    + ( 3855735.0D+00 * f3 - 1371249.0D+00 * f4 ) ) &
+  + ( 3953664.0D+00 * f2 + 277020.0D+00 * f5 ) &
   )
 
   return
 end
-subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
+subroutine rkf45 ( f, y, yp, t, tout, relerr, abserr, flag )
 
 !*****************************************************************************80
 !
@@ -164,9 +175,9 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 !    This routine integrates a system of NEQN first-order ordinary differential
 !    equations of the form:
 !
-!      dY(i)/dT = F(T,Y(1),Y(2),...,Y(NEQN))
+!      dY(i)/dT = F(T,Y(1),Y(2),...,Y)
 !
-!    where the Y(1:NEQN) are given at T.
+!    where the Y are given at T.
 !
 !    Typically the subroutine is used to integrate from T to TOUT but it
 !    can be used as a one-step integrator to advance the solution a
@@ -180,7 +191,7 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 !      and declare F in an EXTERNAL statement;
 !
 !    * initialize the parameters:
-!      NEQN, Y(1:NEQN), T, TOUT, RELERR, ABSERR, FLAG.
+!      NEQN, Y, T, TOUT, RELERR, ABSERR, FLAG.
 !      In particular, T should initially be the starting point for integration,
 !      Y should be the value of the initial conditions, and FLAG should
 !      normally be +1.
@@ -283,9 +294,9 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 !
 !    Input, integer NEQN, the number of equations to be integrated.
 !
-!    Input/output, real ( kind = rk ) Y(NEQN), the current solution vector at T.
+!    Input/output, real ( kind = rk ) Y, the current solution vector at T.
 !
-!    Input/output, real ( kind = rk ) YP(NEQN), the current value of the
+!    Input/output, real ( kind = rk ) YP, the current value of the
 !    derivative of the dependent variable.  The user should not set or alter
 !    this information!
 !
@@ -312,7 +323,13 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 !    be addressed.
 !
   implicit none
-
+  interface
+    subroutine f(t,y,yp)
+      !should be rk kind but whatever
+      double precision, intent(in) :: t,y
+      double precision, intent(out) :: yp
+    end subroutine
+    end interface
   integer, parameter :: rk = kind ( 1.0D+00 )
 
   integer neqn
@@ -326,12 +343,12 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
   real ( kind = rk ) eps
   real ( kind = rk ) esttol
   real ( kind = rk ) et
-  external f
-  real ( kind = rk ) f1(neqn)
-  real ( kind = rk ) f2(neqn)
-  real ( kind = rk ) f3(neqn)
-  real ( kind = rk ) f4(neqn)
-  real ( kind = rk ) f5(neqn)
+  ! external f
+  real ( kind = rk ) f1
+  real ( kind = rk ) f2
+  real ( kind = rk ) f3
+  real ( kind = rk ) f4
+  real ( kind = rk ) f5
   real ( kind = rk ), save :: h = -1.0D+00
   logical hfaild
   real ( kind = rk ) hmin
@@ -355,18 +372,18 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
   real ( kind = rk ) tol
   real ( kind = rk ) toln
   real ( kind = rk ) tout
-  real ( kind = rk ) y(neqn)
-  real ( kind = rk ) yp(neqn)
+  real ( kind = rk ) y
+  real ( kind = rk ) yp
   real ( kind = rk ) ypk
 !
 !  Check the input parameters.
 !
   eps = epsilon ( eps )
 
-  if ( neqn < 1 ) then
-    flag = 8
-    return
-  end if
+  ! if ( neqn < 1 ) then
+  !   flag = 8
+  !   return
+  ! end if
 
   if ( relerr < 0.0D+00 ) then
     flag = 8
@@ -532,16 +549,16 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
     h = abs ( dt )
     toln = 0.0D+00
 
-    do k = 1, neqn
-      tol = relerr * abs ( y(k) ) + abserr
+    ! do k = 1, neqn
+      tol = relerr * abs ( y ) + abserr
       if ( 0.0D+00 < tol ) then
         toln = tol
-        ypk = abs ( yp(k) )
+        ypk = abs ( yp )
         if ( tol < ypk * h**5 ) then
           h = ( tol / ypk )**0.2D+00
         end if
       end if
-    end do
+    ! end do
 
     if ( toln <= 0.0D+00 ) then
       h = 0.0D+00
@@ -576,7 +593,7 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 !
   if ( abs ( dt ) <= 26.0D+00 * eps * abs ( t ) ) then
     t = tout
-    y(1:neqn) = y(1:neqn) + dt * yp(1:neqn)
+    y = y + dt * yp
     call f ( t, y, yp )
     nfe = nfe + 1
     flag = 2
@@ -664,7 +681,7 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 !
 !  Advance an approximate solution over one step of length H.
 !
-      call fehl ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, f1 )
+      call fehl ( f, y, t, h, yp, f1, f2, f3, f4, f5, f1 )
       nfe = nfe + 5
 !
 !  Compute and test allowable tolerances versus local error estimates
@@ -676,7 +693,7 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 
       do k = 1, neqn
 
-        et = abs ( y(k) ) + abs ( f1(k) ) + ae
+        et = abs ( y ) + abs ( f1 ) + ae
 
         if ( et <= 0.0D+00 ) then
           flag = 5
@@ -684,10 +701,10 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
         end if
 
         ee = abs &
-        ( ( -2090.0D+00 * yp(k) &
-          + ( 21970.0D+00 * f3(k) - 15048.0D+00 * f4(k) ) &
+        ( ( -2090.0D+00 * yp &
+          + ( 21970.0D+00 * f3 - 15048.0D+00 * f4 ) &
           ) &
-        + ( 22528.0D+00 * f2(k) - 27360.0D+00 * f5(k) ) &
+        + ( 22528.0D+00 * f2 - 27360.0D+00 * f5 ) &
         )
 
         eeoet = max ( eeoet, ee / et )
@@ -726,7 +743,7 @@ subroutine rkf45 ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 !  Store the solution for T+H, and evaluate the derivative there.
 !
     t = t + h
-    y(1:neqn) = f1(1:neqn)
+    y = f1
     call f ( t, y, yp )
     nfe = nfe + 1
 !
