@@ -1,4 +1,4 @@
-  
+
 !module with all the star properties
 !also contains DM mass and cross section
 module star
@@ -41,6 +41,10 @@ module star
         call get_solar_params(filename,nlines)
       else
         Rsun = 69.57d9
+        AtomicNumber  = (/ 1., 4., 3., 12., 13., 14., 15., 16., 17., &
+                          18., 20.2, 22.99, 24.3, 26.97, 28.1, 30.97,32.06, 35.45, &
+                          39.948, 39.098, 40.08, 44.95, 47.86, 50.94, 51.99, &
+                          54.93, 55.845, 58.933, 58.693/)
       end if
 
     if (anPot) then
@@ -61,7 +65,7 @@ module star
       if (anDens) then
       nnuc = rhoSHO/mnucg
       else
-      call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R,nnuc)
+      call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R/Rsun,nnuc)
       end if
       ndensity = nnuc
     end function
@@ -87,7 +91,12 @@ module star
     if (anTemp) then
      T = 1.5d6
     else
-     call interp1(tab_r,tab_T,Nlines,R,T)
+      if (R/Rsun < tab_r(1)) then
+        T = tab_T(1)
+      else
+
+       call interp1(tab_r,tab_T,Nlines,R/Rsun,T)
+     end if
     end if
     temperature =  T
   end function
@@ -99,7 +108,7 @@ module star
     if (anPot) then
       phi = 2.*pi*GN*rhoSHO*R**2/3.
     else
-      call interp1(tab_r,tab_phi,Nlines,R,phi)
+      call interp1(tab_r,tab_phi,Nlines,R/Rsun,phi)
     end if
     potential =  phi
   end function

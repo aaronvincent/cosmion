@@ -108,7 +108,7 @@ flag = 1
 y = 0.d0
 call rkf45 (step, y, yp, time, tout, relerr, abserr, flag )
 ! print*, "flag is", flag
- ! Newton's method -- may work
+ ! Newton's method -- seems to work
 ! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', tout
 tout = tout - (y-tau)/yp
 ! print*,'time ', tout
@@ -130,23 +130,42 @@ end subroutine propagate
 
 
 
-subroutine collide(x,v)
+subroutine collide(x,vin,vout)
+  !turns old velocity into new velocity
   use star
   implicit none
   integer niso
-  double precision, :: x(3),v(3),vnuc(3),unuc,s(3),T,r
-  double precision, :: theta, phi !outgoing angles in COM frame
-!) select a species to collide with
+  double precision, intent(in) :: x(3),vin(3)
+  double precision, intent(out) :: vout(3)
+  double precision :: v(3),vnuc(3),unuc,s(3),T,r,vcm,a,b
+  double precision :: ctheta, phi,random_normal !outgoing angles in COM frame
+!) select a species to collide with. Hardcoded for now
   niso = 1
-  !a little different from Hannah's method: we draw 3 nuclear velocities from a MB distribution
+  !a little different from Hannah's method: we draw 3 nuclear velocities from a local MB distribution
+  v = vin
   r = sqrt(sum(x**2))
   T = temperature(r)
-  vnuc(1) = Sqrt(kB*T/mdm)*random_normal()
-  vnuc(2) = Sqrt(kB*T/mdm)*random_normal()
-  vnuc(3) = Sqrt(kB*T/mdm)*random_normal()
+  
+  vnuc(1) = Sqrt(kB*T/(AtomicNumber(niso)*mnucg))*random_normal()
+  vnuc(2) = Sqrt(kB*T/(AtomicNumber(niso)*mnucg))*random_normal()
+  vnuc(3) = Sqrt(kB*T/(AtomicNumber(niso)*mnucg))*random_normal()
 
 ! 2) Boost to CM frame
-s = (mdm*v + A(niso)*mnucg)/(mdm+A(niso)*mnucg)
+s = (mdm*v + AtomicNumber(niso)*mnucg*vnuc)/(mdm+AtomicNumber(niso)*mnucg)
+vcm = sqrt(sum((v-s)**2)) !velocity in CM frame
+
+!Scattering is isotropic, so the new angle does not depend on the old one
+call random_number(a)
+ctheta = 2.*a-1.
+a = acos(ctheta)
+call random_number(b)
+phi = 2.*pi*b
+vout(1) = vcm*sin(a)*sin(phi)
+vout(2) = vcm*sin(a)*cos(phi)
+vout(3) = vcm*ctheta
+!boost back to star frame
+
+vout = vout + s
 
 
 end subroutine collide
@@ -188,7 +207,7 @@ subroutine omega(xin,vin,phase_i,amplitude_i,omega_out) !,omegaprime)
   !niso = 1 = hydrogen hardcoded
   wprefactor = 2.*sigSD*ndensity(r,1)*vT*sqrt(mu)
   omega_out = wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
-  !the next bit is me not understanding wtf is going on. Ignore
+  !the next bit is me not understanding wtf is going on. I made derivatives yay. Ignore
 !   accel = -OmegaSHO**2*xin
 !
 !   yprime = 2.d0*sum(accel*vin)/mdm !y^2'
