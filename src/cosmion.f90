@@ -19,8 +19,8 @@ call random_seed
 
 
 !masses in g
-mdm = 10.*GeV
-sigsd = 1.d-35 !cm^2
+mdm = 1.*GeV
+sigsd = 1.d-38 !cm^2
 anTemp = .false.
 anDens = .false.
 anPot = .true.

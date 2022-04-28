@@ -65,7 +65,11 @@ module star
       if (anDens) then
       nnuc = rhoSHO/mnucg
       else
-      call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R/Rsun,nnuc)
+        if (R/Rsun .lt. tab_r(1)) then
+          nnuc = tab_starrho(1)*tab_mfr(1,iso)/AtomicNumber(iso)/mnucg
+        else
+          call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R/Rsun,nnuc)
+        end if
       end if
       ndensity = nnuc
     end function

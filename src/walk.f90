@@ -100,6 +100,7 @@ n = ndensity(R,1)
 mfp = 1./(n*sigSD*vx) !a mean free path in seconds
 ! print*,"mean free path in cm ", mfp*vx, "and in s ", mfp
 tout = tau*mfp
+tout = tout/4. !this speeds things up
 
 do while ((abs(y-tau)/tau .gt. 1.d-3 ) .and. (counter .lt. 10000))
 counter = counter + 1
@@ -108,14 +109,16 @@ flag = 1
 y = 0.d0
 call rkf45 (step, y, yp, time, tout, relerr, abserr, flag )
 ! print*, "flag is", flag
- ! Newton's method -- seems to work
+ ! Newton's method to find the stopping point-- this does very well for constant density/small cross section,
+ ! not well at all if n(r) varies a lot over the trajectory
 ! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', tout
 tout = tout - (y-tau)/yp
 ! print*,'time ', tout
 end do
+print*, "took ", counter, ' tries ', ' guess ', tau*mfp/4., 'actual ', tout
 ! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', time
 ! print*," Did the loop, tout = ", tout
-! print*, "amplitude ", amplitude_i, "phase ", phase_i,"omegasho", OmegaSHO
+
 
 xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
 xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
@@ -145,7 +148,7 @@ subroutine collide(x,vin,vout)
   v = vin
   r = sqrt(sum(x**2))
   T = temperature(r)
-  
+
   vnuc(1) = Sqrt(kB*T/(AtomicNumber(niso)*mnucg))*random_normal()
   vnuc(2) = Sqrt(kB*T/(AtomicNumber(niso)*mnucg))*random_normal()
   vnuc(3) = Sqrt(kB*T/(AtomicNumber(niso)*mnucg))*random_normal()
