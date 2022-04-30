@@ -57,6 +57,11 @@ interface
     double precision, intent(in) :: t,y
     double precision, intent(out) :: yp
   end subroutine
+  subroutine pets(y,t,yp)
+    !should be rk kind but whatever
+    double precision, intent(in) :: t,y
+    double precision, intent(out) :: yp
+  end subroutine
   end interface
 
 double precision, intent(in) :: xin(3),vin(3)
@@ -70,8 +75,8 @@ double precision :: y, yp, time, tout, relerr, abserr
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-6
-abserr = 1.d-6
+relerr = 1.d-10
+abserr = 1.d-10
 flag = 1
 counter = 0
 
@@ -100,23 +105,35 @@ n = ndensity(R,1)
 mfp = 1./(n*sigSD*vx) !a mean free path in seconds
 ! print*,"mean free path in cm ", mfp*vx, "and in s ", mfp
 tout = tau*mfp
-tout = tout/4. !this speeds things up
-
-do while ((abs(y-tau)/tau .gt. 1.d-3 ) .and. (counter .lt. 10000))
-counter = counter + 1
+! tout = tout/4. !this speeds things up
+!tout is no longer used
+!old iterative method:
+! do while ((abs(y-tau)/tau .gt. 1.d-6 ) .and. (counter .lt. 10000))
+! counter = counter + 1
+! time = 0.d0
+! flag = 1
+! y = 0.d0 !initial column density
+! call rkf45 (step, y, yp, time, tout, relerr, abserr, flag )
+! ! print*, "flag is", flag
+!  ! Newton's method to find the stopping point-- this does very well for constant density/small cross section,
+!  ! not well at all if n(r) varies a lot over the trajectory
+! ! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', tout
+! tout = tout - (y-tau)/yp
+!
+! ! I'm gonna do what you might call a pro-gamer move
+! !this integrates t until we reach optical depth tau
+!
+! ! print*,'time ', tout
+! end do
+! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', time
 time = 0.d0
 flag = 1
 y = 0.d0
-call rkf45 (step, y, yp, time, tout, relerr, abserr, flag )
-! print*, "flag is", flag
- ! Newton's method to find the stopping point-- this does very well for constant density/small cross section,
- ! not well at all if n(r) varies a lot over the trajectory
-! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', tout
-tout = tout - (y-tau)/yp
-! print*,'time ', tout
-end do
-print*, "took ", counter, ' tries ', ' guess ', tau*mfp/4., 'actual ', tout
-! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', time
+call rkf45 (pets, t, yp, y,tau, relerr, abserr, flag )
+tout = t
+! print*, "took ", counter, ' tries ', ' guess ', tau*mfp/4., 'actual ', tout
+! print*,"using pro move: "
+! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', t
 ! print*," Did the loop, tout = ", tout
 
 
@@ -190,8 +207,27 @@ subroutine step(t,y,yprime)
   !y is not used
   call omega(x,vx,phase_i,amplitude_i,yprime)
 
-
 end subroutine step
+
+!inverse of steps(). dt/dtau = yprimeinv = 1/w
+subroutine pets(y,t,yprimeinv)
+  use init_conds
+  use star
+  implicit none
+  double precision, intent(in) :: t,y
+  double precision, intent(out) ::  yprimeinv
+  double precision :: ri(3), vi(3),yprime
+  double precision :: x(3),vx(3) !the integrator does not need to know these
+  x = amplitude_i*cos(OmegaSHO*t+phase_i)
+  vx = -amplitude_i*OmegaSHO*sin(OmegaSHO*t+phase_i)
+  ! print*,'calling step, x = ', x
+!this needs to be a loop if you have multiple species
+  !y is not used
+  call omega(x,vx,phase_i,amplitude_i,yprime)
+  yprimeinv = 1.d0/yprime
+
+end subroutine pets
+
 
 subroutine omega(xin,vin,phase_i,amplitude_i,omega_out) !,omegaprime)
   !compute omega and its derivative given the position and velocity of a particle
