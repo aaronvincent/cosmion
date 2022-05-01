@@ -1,5 +1,6 @@
 FC=gfortran
-FOPT= -O3 -fPIC -std=legacy# -Wall -fbounds-check -g  #legacy is required if you are running gcc 10 or later
+FOPT= -O3 -fPIC #-std=legacy# -Wall -fbounds-check -g  #legacy is required if you are running gcc 10 or later
+# FOPT = -pg
 SRCDIR = ./src
 # NUMDIR = ./numerical
 # QAGDIR = ./numerical/dqag
@@ -22,6 +23,12 @@ csharedlib.so: $(MFSHR)  $(NUMFOBJ)
 
 cosmion.x: $(MAIN)  csharedlib.so
 	${FC} $(FOPT) -L. -Wl,-rpath,. -o cosmion.x $(MAIN) csharedlib.so
+
+
+debug: $(NUMFOBJ) $(MFSHR) $(MAIN)
+		${FC} $(FOPT)  -Wl,-rpath,. -o cosmionDB.x $(MAIN) $(MFSHR) $(NUMFOBJ)
+
+
 
 $(NUMFOBJ): %.o : $(SRCDIR)/%.f90
 	$(FC) $(FOPT) -c  $<

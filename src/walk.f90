@@ -261,8 +261,10 @@ subroutine isinside(x,isinside_flag)
   implicit none
   double precision, intent(in) :: x(3)
   logical :: isinside_flag
+  ! print*, "R/Rsun ", sqrt(sum(x**2))/Rsun
   if (sqrt(sum(x**2)) .ge. rsun) then
     isinside_flag = .false.
+    ! print*,"flagged"
   end if
 end subroutine
 

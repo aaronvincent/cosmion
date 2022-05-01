@@ -75,7 +75,7 @@ module star
     end function
 
     function dndr(R,iso)
-  ! number density of scatterers at position r
+  ! number density derivative of scatterers at position r. Not used
       double precision dndr
       double precision, intent(in) :: R
       integer, intent(in) :: iso
@@ -93,7 +93,9 @@ module star
      double precision, intent(in):: R
     double precision :: T, temperature
     if (anTemp) then
-     T = 1.5d6
+     ! T = 1.5d6 ! Constant case: nuclei equilibrate to this, which is good
+     !linear temperature gradient
+    T = 1.5d6*(1.-R/Rsun)
     else
       if (R/Rsun < tab_r(1)) then
         T = tab_T(1)

@@ -19,14 +19,14 @@ call random_seed
 
 
 !masses in g
-mdm = 10.*GeV
-sigsd = 1.d-38 !cm^2
-anTemp = .true.
-anDens = .true.
+mdm = 1*GeV
+sigsd = 1.d-34 !cm^2
+anTemp = .false.
+anDens = .false.
 anPot = .true.
 isinside_flag = .true.
 
-Nsteps =1e7
+Nsteps =1e3
 
 outfile = 'positions.dat'
 
@@ -43,17 +43,23 @@ print*,xi, vi
 call timestamp
 do i = 1,Nsteps
 call propagate(xi,vi,x,v,time)
+
+!this check doesn't actually work, since the RKF solver will keep trying to integrate past rsun
+!it dies without closing the file, I think we lose everything
+call isinside(x,isinside_flag)
+if (isinside_flag .eqv. .false.) then
+print*, "Elvis has left the building"
+return
+end if
 call collide(x,v,vout)
 ! print*, "vin ", v, "vout ", vout
 write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time
 xi = x
 vi = vout
 
-call isinside(x,isinside_flag)
-if (isinside_flag .eqv. .false.) then
-print*, "Elvis has left the building"
-return
-end if
+
+
+
 
 ! print*,x,v
 end do
