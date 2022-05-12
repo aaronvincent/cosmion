@@ -43,6 +43,14 @@ subroutine spawn(x,v)
   v(2) = Sqrt(kB*T/mdm)*random_normal()
   v(3) = Sqrt(kB*T/mdm)*random_normal()
 
+  ! Throws the particle out of the star in one step, for testing
+  ! x(1) = 37e9
+  ! x(2) = 37e9
+  ! x(3) = 37e9
+  ! v(1) = 2e8
+  ! v(2) = 2e8
+  ! v(3) = 2e8
+
 ! print*,'A random number ', random_normal()
 
 end subroutine spawn
@@ -130,6 +138,12 @@ time = 0.d0
 flag = 1
 y = 0.d0
 call rkf45 (pets, t, yp, y,tau, relerr, abserr, flag )
+if (t /= t) then
+  print*,"Elvis has left the building"
+  ! Here we must include code for the Keplerian orbit of the particle
+  ! First we integrate the path from its initial position to the solar radius.
+  ! Then we use the orbit to find the re-entry parameters.
+end if
 tout = t
 ! print*, "took ", counter, ' tries ', ' guess ', tau*mfp/4., 'actual ', tout
 ! print*,"using pro move: "
@@ -236,6 +250,16 @@ subroutine omega(xin,vin,phase_i,amplitude_i,omega_out) !,omegaprime)
   implicit none
   double precision, intent(in) :: xin(3),vin(3),phase_i(3),amplitude_i(3)
   double precision :: vT,r,v2,y,omega_out,omegaprime,yprime,accel(3),wprefactor
+  logical isinside_flag
+  isinside_flag = .true.
+  ! The following line and conditional check if the particle is inside the star.
+  ! If it left the star, the integrator will return NaN for the time t.
+  ! It's sketchy, but we can then easily identify if the particle left after integration.
+  call isinside(xin,isinside_flag)
+  if (isinside_flag .eqv. .false.) then
+    omega_out = 0
+    return
+  end if
   r = sqrt(xin(1)**2+xin(2)**2+xin(3)**2)
   vT = sqrt(2.*kB*temperature(r)/mdm)
   v2 = vin(1)**2 + vin(2)**2 + vin(3)**2

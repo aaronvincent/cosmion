@@ -46,11 +46,11 @@ call propagate(xi,vi,x,v,time)
 
 !this check doesn't actually work, since the RKF solver will keep trying to integrate past rsun
 !it dies without closing the file, I think we lose everything
-call isinside(x,isinside_flag)
-if (isinside_flag .eqv. .false.) then
-print*, "Elvis has left the building"
-return
-end if
+!call isinside(x,isinside_flag)
+!if (isinside_flag .eqv. .false.) then
+!print*, "Elvis has left the building"
+!return
+!end if
 call collide(x,v,vout)
 ! print*, "vin ", v, "vout ", vout
 write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time
