@@ -46,11 +46,13 @@ module star
                           39.948, 39.098, 40.08, 44.95, 47.86, 50.94, 51.99, &
                           54.93, 55.845, 58.933, 58.693/)
       end if
-
+      print*,"if statement"
     if (anPot) then
       rhoSHO = 148.9d0 !g/cm^3
       rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*rhoSHO*mdm))
       OmegaSHO = sqrt(4./3.*pi*GN*rhoSHO)
+    else
+      rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*tab_starrho(1)*mdm))
     end if
     print*,"initialized star"
 
@@ -114,10 +116,30 @@ module star
     if (anPot) then
       phi = 2.*pi*GN*rhoSHO*R**2/3.
     else
-      call interp1(tab_r,tab_phi,Nlines,R/Rsun,phi)
+      if (R/Rsun < tab_r(1)) then
+        phi = tab_phi(1)
+      else
+        call interp1(tab_r,tab_phi,Nlines,R/Rsun,phi)
+      end if
     end if
     potential =  phi
   end function
+
+! get acceleration at R
+  function gofr(R)
+    double precision, intent(in):: R
+    double precision :: gofr
+    if (anPot) then
+      gofr = -4.*pi*GN*rhoSHO*R/3.
+    else
+      if (R/Rsun < tab_r(1)) then
+        gofr = tab_g(1)
+      else
+        call interp1(tab_r,tab_g,Nlines,R/Rsun,gofr)
+      end if
+    end if
+  end function
+
 
 
 

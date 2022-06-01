@@ -19,14 +19,14 @@ call random_seed
 
 
 !masses in g
-mdm = 1*GeV
-sigsd = 1.d-34 !cm^2
+mdm = 2.*GeV
+sigsd = 1.d-37 !cm^2
 anTemp = .false.
 anDens = .false.
-anPot = .true.
+anPot = .false.
 isinside_flag = .true.
 
-Nsteps =1e3
+Nsteps =1e5
 
 outfile = 'positions.dat'
 
