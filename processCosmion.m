@@ -1,7 +1,7 @@
 %units CGS everywhere
 
-load positions.dat
-% positions = positions_SHO
+load positions_SHO2.dat
+% positions = positions_SHO2;
 
 %% 
 GeV = 1.78e-24;
@@ -35,5 +35,27 @@ end
 L = L/sum(t);
 stdL = stdL/sum(t);
 % plot(bins,L,'linestyle','none')
-errorbar(bins,L,stdL,'linestyle','none','markersize',10,'marker','.')
+% errorbar(bins,L,stdL,'linestyle','none','markersize',10,'marker','.')
 % plot(bins,Tav)
+
+
+
+xvec = positions_SHO2(:,1:3);
+vvec = positions_SHO2(:,4:6);
+
+for j = 1:length(xvec)
+xdotv(j) = xvec(j,:)*vvec(j,:)';
+end
+
+
+for j = 1:length(xvec)
+xhat(j,:) = xvec(j,:)./r(j);
+end
+% size(xhat)
+for j = 1:length(xvec)
+vperp(j,:) = vvec(j,:) - vvec(j,:)*xhat(j,:)';
+end
+vperpAmp = sqrt(sum(vperp.^2,2));
+
+
+

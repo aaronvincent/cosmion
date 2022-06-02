@@ -82,8 +82,8 @@ double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnit
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-5
-abserr = 1.d-5
+relerr = 1.d-6
+abserr = 1.d-6
 flag = 1
 counter = 0
 
@@ -163,6 +163,7 @@ else !numerically integrate potential
   ! So we'll track velocities before and after propagation,
   !but we won't actually move the angular position. In this way we only need to solve 3 equations of motion:
   !t(tau), r(tau) and rdot(tau). Optical depth tau is still our dependent variable
+  !tangential velocity recovered from angular momentum.
 
 
 !angular momentum/m = R x V
@@ -191,6 +192,7 @@ xout(2) = 0.d0
 xout(3) = 0.d0
 
 vout(1) = yarr(3) !we have chosen r to be parallel to x
+! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
 vout(2) = ell/xout(1) ! stick tangential velocity in the y direction
 vout(3) = 0.d0
 ! print*, "walked"

@@ -19,11 +19,22 @@ call random_seed
 
 
 !masses in g
-mdm = 2.*GeV
+mdm = 5.*GeV
 sigsd = 1.d-37 !cm^2
 anTemp = .false.
 anDens = .false.
-anPot = .false.
+anPot = .false. !treat potential as SHO and use analytic trajectory expressions for x, v
+
+!SHO_debug overrides the tabulated phi(r) to provide SHO potential
+!for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
+!this flag does nothing if anPot is already true.
+SHO_debug = .true.
+
+if (anPot .or. SHO_debug) then
+  print*, "Watch out, you are using a SHO potential"
+end if
+
+
 isinside_flag = .true.
 
 Nsteps =1e5

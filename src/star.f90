@@ -8,7 +8,7 @@ module star
 
 ! Units: length = cm, time = s,energy = erg, mass = g
 ! Turns on analytic treatment of the temperature, density, potential
-  logical :: anTemp, anDens, anPot
+  logical :: anTemp, anDens, anPot, SHO_debug
   integer nlines
   double precision, allocatable :: tab_mencl(:), tab_starrho(:), tab_mfr(:,:), tab_r(:), tab_vesc(:), tab_dr(:)
   double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:),tab_phi(:)
@@ -16,7 +16,9 @@ module star
   double precision, parameter :: c0=2.99792458d10,GN = 6.672d-8,pi=3.141592653, mnuc = 0.938,mnucg = 1.66054d-24
   double precision, parameter :: hbarc = 1.97d-14,kb = 1.3807d-16
   !this goes with the Serenelli table format
-  double precision :: AtomicNumber(29) !29 is is the number from the Serenelli files; if you have fewer it shouldn't matter
+  !29 is  the number from the Serenelli files;
+  !if you have fewer it shouldn't matter. Careful about column order though.
+  double precision :: AtomicNumber(29)
 
 !functions
   ! double precision :: ndensity, temperature, potential
@@ -47,7 +49,7 @@ module star
                           54.93, 55.845, 58.933, 58.693/)
       end if
       print*,"if statement"
-    if (anPot) then
+    if (anPot .or. SHO_debug) then
       rhoSHO = 148.9d0 !g/cm^3
       rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*rhoSHO*mdm))
       OmegaSHO = sqrt(4./3.*pi*GN*rhoSHO)
@@ -113,7 +115,7 @@ module star
   function potential(R)
     double precision, intent(in):: R
     double precision :: phi, potential
-    if (anPot) then
+    if (anPot .or. SHO_debug) then
       phi = 2.*pi*GN*rhoSHO*R**2/3.
     else
       if (R/Rsun < tab_r(1)) then
@@ -129,7 +131,7 @@ module star
   function gofr(R)
     double precision, intent(in):: R
     double precision :: gofr
-    if (anPot) then
+    if (anPot .or. SHO_debug) then
       gofr = -4.*pi*GN*rhoSHO*R/3.
     else
       if (R/Rsun < tab_r(1)) then
