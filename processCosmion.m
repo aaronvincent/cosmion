@@ -53,7 +53,8 @@ xhat(j,:) = xvec(j,:)./r(j);
 end
 % size(xhat)
 for j = 1:length(xvec)
-vperp(j,:) = vvec(j,:) - vvec(j,:)*xhat(j,:)';
+    vr(j) = (vvec(j,:)*xhat(j,:)');
+vperp(j,:) = vvec(j,:) - vr(j)*xhat(j,:);
 end
 vperpAmp = sqrt(sum(vperp.^2,2));
 

@@ -82,8 +82,8 @@ double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnit
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-6
-abserr = 1.d-6
+relerr = 1.d-5
+abserr = 1.d-10
 flag = 1
 counter = 0
 
