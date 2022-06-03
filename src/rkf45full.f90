@@ -78,8 +78,8 @@ subroutine fehlfull ( f, neqn, y, t, h, yp, f1, f2, f3, f4, f5, s )
     subroutine f(t,y,yp)
       !should be rk kind but whatever
       !neqn is hardcoded here
-      double precision, intent(in) :: t,y(3)
-      double precision, intent(out) :: yp(3)
+      double precision, intent(in) :: t,y(2)
+      double precision, intent(out) :: yp(2)
     end subroutine
     end interface
 
@@ -326,8 +326,8 @@ subroutine rkf45full ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
     subroutine f(t,y,yp)
       integer, parameter :: rk = kind ( 1.0D+00 )
       !neqn is hardcoded to 3 here
-      real ( kind = rk ), intent(in) :: t,y(3)
-      real ( kind = rk ), intent(out) :: yp(3)
+      real ( kind = rk ), intent(in) :: t,y(2)
+      real ( kind = rk ), intent(out) :: yp(2)
     end subroutine
   end interface
 
@@ -785,7 +785,7 @@ subroutine rkf45full ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
     end if
 
     h = sign ( max ( s * abs ( h ), hmin ), h )
-    
+
 !
 !  End of core integrator
 !

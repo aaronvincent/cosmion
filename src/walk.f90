@@ -82,7 +82,7 @@ double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnit
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-5
+relerr = 1.d-6
 abserr = 1.d-10
 flag = 1
 counter = 0
@@ -175,12 +175,21 @@ else !numerically integrate potential
 !magnitude of angular momentum.
 !This is stored in initial conditions module since it is required in the eom
   ell = sqrt(sum(ellvec**2))
+
   ! print*, "L = ", ellvec, " ell = ", ell
   yarr(1) = 0.d0 !initial time
   yarr(2) = r
-  yarr(3) = sum(vin*xin)/r !velocity in R direction
+
+  r  = sqrt(sum(xin**2))
+  vx = sqrt(sum(vin**2))
+  ! yarr(3) = sum(vin*xin)/r !velocity in R direction
+
+  !energy over m is conserved
+  !This is stored in initial conditions module since it is required in the eom
+  ! eoverm = .5*vx**2 + .5*ell**2/r**2 - potential(r)
+  eoverm = .5*vx**2  - potential(r)
   ! print*,"callking rkf"
-  call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+  call rkf45full (pets_sph,2, yarr, yparr, taustart,tau, relerr, abserr, flag )
 !arguments from the original function ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 ! print*,"called"
 tout = yarr(1) !time
@@ -191,7 +200,9 @@ xout(1) = yarr(2)
 xout(2) = 0.d0
 xout(3) = 0.d0
 
-vout(1) = yarr(3) !we have chosen r to be parallel to x
+
+! !we have chosen r to be parallel to x
+vout(1) = sqrt(2.*eoverm - ell/xout(1)**2 - potential(r)) !get radial velocity from position and conservation of energy
 ! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
 vout(2) = ell/xout(1) ! stick tangential velocity in the y direction
 vout(3) = 0.d0
@@ -299,8 +310,8 @@ subroutine pets_sph(tau,y,yprime)
 
   time = y(1)
   r = abs(y(2))
-  vr = y(3)
-
+  ! vr = y(3)
+  vr = sqrt(2.*eoverm - ell/r**2 - potential(r))
 ! print*,'calling step, x = ', x
 !this needs to be a loop if you have multiple species
   !y is not used
@@ -313,7 +324,7 @@ subroutine pets_sph(tau,y,yprime)
 !the yprime(1) here is to go from d/dt to d/dtau using the chain rule
   yprime(2) = yprime(1)*vr !eom for r
 
-  yprime(3) = yprime(1)*(gofr(r) + ell**2/r**3) !EOM for rdot
+  ! yprime(3) = yprime(1)*(gofr(r) + ell**2/r**3) !EOM for rdot
 
 ! print*,'Arrays assigned: tau = ', tau, ' y = ', y, 'yprime = ', yprime
   ! print*, "g of r ", gofr(r)

@@ -64,7 +64,8 @@ return
 end if
 call collide(x,v,vout)
 ! print*, "vin ", v, "vout ", vout
-write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time
+r = sqrt(sum(x**2))
+write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time, potential(r)
 xi = x
 vi = vout
 
