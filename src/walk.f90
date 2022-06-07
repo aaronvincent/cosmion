@@ -82,7 +82,7 @@ double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnit
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-6
+relerr = 1.d-7
 abserr = 1.d-10
 flag = 1
 counter = 0
@@ -186,10 +186,11 @@ else !numerically integrate potential
 
   !energy over m is conserved
   !This is stored in initial conditions module since it is required in the eom
-  ! eoverm = .5*vx**2 + .5*ell**2/r**2 - potential(r)
-  eoverm = .5*vx**2  - potential(r)
-  ! print*,"callking rkf"
-  call rkf45full (pets_sph,2, yarr, yparr, taustart,tau, relerr, abserr, flag )
+  ! eoverm = .5*vx**2 + .5*ell**2/r**2 + potential(r)
+  eoverm = .5*vx**2  + potential(r)
+
+  ! print*,"callking rkf, eoverm = ", eoverm
+  call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
 !arguments from the original function ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 ! print*,"called"
 tout = yarr(1) !time
@@ -201,8 +202,9 @@ xout(2) = 0.d0
 xout(3) = 0.d0
 
 
+
 ! !we have chosen r to be parallel to x
-vout(1) = sqrt(2.*eoverm - ell/xout(1)**2 - potential(r)) !get radial velocity from position and conservation of energy
+vout(1) = yarr(3) !sqrt(2.*eoverm - ell**2/xout(1)**2 - 2.*potential(r)) !get radial velocity from position and conservation of energy
 ! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
 vout(2) = ell/xout(1) ! stick tangential velocity in the y direction
 vout(3) = 0.d0
@@ -303,16 +305,35 @@ subroutine pets_sph(tau,y,yprime)
   use init_conds
   use star
   implicit none
-  double precision, intent(in) :: tau,y(3)
-  double precision, intent(out) ::  yprime(3)
-  double precision :: omega_i, time, r, vr
+  double precision, intent(in) :: tau,y(2)
+  double precision, intent(out) ::  yprime(2)
+  double precision :: omega_i, time, r, vr,vdot
   ! double precision ::
 
   time = y(1)
   r = abs(y(2))
-  ! vr = y(3)
-  vr = sqrt(2.*eoverm - ell/r**2 - potential(r))
-! print*,'calling step, x = ', x
+  vr = y(3)
+
+  !!commented out attempt to integrate single equation only
+  ! things become problematic when the particle turns around.
+  !vdot is used to get the sign of v_r
+
+  ! vdot = gofr(r) + ell**2/r**3
+  ! print*, "g", gofr(r)
+  !this is a fudge. Check later that energy is conserved.
+!   if (2.*eoverm - ell**2/r**2 - 2*potential(r) .lt. 0.d0) then
+!     vr = 0.d0
+!   else
+!   vr = sqrt(2.*eoverm - ell**2/r**2 - 2*potential(r))
+! end if
+
+  ! vr = -1.*vdot/abs(vdot)*vr
+
+
+! open(92,file = "intvals.dat",access='append')
+! write(92,*) r, potential(r), vr, eoverm, ell
+! close(92)
+! print*,'calling step, r = ', r, "vr = ", vr, "potential = ", potential(r), "eoverm = ", eoverm,"ell = ", ell
 !this needs to be a loop if you have multiple species
   !y is not used
   ! print*,'calling Omega with ell = ', ell
@@ -324,7 +345,7 @@ subroutine pets_sph(tau,y,yprime)
 !the yprime(1) here is to go from d/dt to d/dtau using the chain rule
   yprime(2) = yprime(1)*vr !eom for r
 
-  ! yprime(3) = yprime(1)*(gofr(r) + ell**2/r**3) !EOM for rdot
+  yprime(3) = yprime(1)*(gofr(r) + ell**2/r**3) !EOM for rdot
 
 ! print*,'Arrays assigned: tau = ', tau, ' y = ', y, 'yprime = ', yprime
   ! print*, "g of r ", gofr(r)
