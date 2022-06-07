@@ -4,9 +4,11 @@ load positions_SHO.dat
 % positions = positions_SHO2;
 
 %% 
-% GeV = 1.78e-24;
-% m = 2* GeV;
+GeV = 1.78e-24;
+mx = 4; %* GeV;
+m = mx*GeV;
 Rsun = 69.57d9;
+sigma = 1e-37;
 % kB = 1.38e-16;
 % r = sqrt(sum(positions(:,1:3).^2,2));
 % v = sqrt(sum(positions(:,4:6).^2,2));
@@ -62,17 +64,51 @@ vperpAmp = sqrt(sum(vperp.^2,2));
 
 histogram(vr,[-1:.01:1]*1e8,'normalization','pdf')
 hold on
+
+
+
 load positions.dat
 
-histogram(positions(:,4),[-1:.01:1]*1e8,'normalization','pdf')
+xvec = positions(:,1:3);
+vvec = positions(:,4:6);
 
+rnum = sqrt(sum(xvec.^2,2));
+
+for j = 1:length(xvec)
+xdotv(j) = xvec(j,:)*vvec(j,:)';
+end
+
+
+for j = 1:length(xvec)
+xhat(j,:) = xvec(j,:)./rnum(j);
+end
+% size(xhat)
+for j = 1:length(xvec)
+    vrNum(j) = (vvec(j,:)*xhat(j,:)');
+vperpNum(j,:) = vvec(j,:) - vrNum(j)*xhat(j,:);
+end
+vperpAmpNum = sqrt(sum(vperpNum.^2,2));
+
+
+
+histogram(vrNum,[-1:.01:1]*1e8,'normalization','pdf')
+xlabel('v_r')
+legend('SHO', 'NUMERICAl')
 figure
 histogram(vperpAmp,[-1:.01:1]*1e8,'normalization','pdf')
 hold on
-histogram(positions(:,5),[-1:.01:1]*1e8,'normalization','pdf')
+histogram(vperpAmpNum,[-1:.01:1]*1e8,'normalization','pdf')
 
+xlabel('v_\theta')
+ %% 
 figure
 histogram(r,[0:.001:.2]*Rsun,'normalization','pdf')
 hold on
 rnum = sqrt(sum(positions(:,1:3).^2,2));
 histogram(rnum,[0:.001:.2]*Rsun,'normalization','pdf')
+xlabel('r')
+
+
+[R, Etrans,Q, K, nx, sigsOut,nxIso,nxLTE, Ltrans,LPS,LLTE,Rchi] = luminosity_constrho_slim(sigma,mx ,0, 0,220e5,1,1);
+plot(R*Rsun,R.^2*Rsun.^2.*nxIso./trapz(R*Rsun,R.^2*Rsun.^2.*nxIso),'linewidth',2)
+set(gca,'xlim',[0,.2]*Rsun)

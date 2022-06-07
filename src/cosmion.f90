@@ -19,7 +19,7 @@ call random_seed
 
 
 !masses in g
-mdm = 5.*GeV
+mdm = 4.*GeV
 sigsd = 1.d-37 !cm^2
 anTemp = .false.
 anDens = .false.
@@ -39,15 +39,20 @@ isinside_flag = .true.
 
 Nsteps =1e5
 
-outfile = 'positions.dat'
+outfile = 'positions2.dat'
 
 call init_star(anTemp,anDens,anPot,mdm,sigSD)
+
+! print*,"potential at 0.5 ", potential(0.5d0)
 
 open(94,file = outfile)
 
 
-! call spawn(x,y,z,vx,vy,vz)
+
 call spawn(xi,vi)
+!spawining at a specific place, for testing
+! xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
+! vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
 print*,xi, vi
 
 ! big loop

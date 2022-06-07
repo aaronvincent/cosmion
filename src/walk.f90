@@ -82,7 +82,7 @@ double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnit
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-7
+relerr = 1.d-6
 abserr = 1.d-10
 flag = 1
 counter = 0
@@ -140,8 +140,8 @@ if (anPot) then
   phase_i = atan(-vin,OmegaSHO*xin)
   amplitude_i = xin/cos(phase_i)
 
-  call rkf45 (pets, t, yp, y,tau, relerr, abserr, flag )
-  tout = t
+  call rkf45 (pets, time, yp, y,tau, relerr, abserr, flag )
+  tout = time
   ! print*, "took ", counter, ' tries ', ' guess ', tau*mfp/4., 'actual ', tout
   ! print*,"using pro move: "
   ! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', t
@@ -182,13 +182,13 @@ else !numerically integrate potential
 
   r  = sqrt(sum(xin**2))
   vx = sqrt(sum(vin**2))
-  ! yarr(3) = sum(vin*xin)/r !velocity in R direction
+  yarr(3) = sum(vin*xin)/r !velocity in R direction
 
   !energy over m is conserved
   !This is stored in initial conditions module since it is required in the eom
   ! eoverm = .5*vx**2 + .5*ell**2/r**2 + potential(r)
-  eoverm = .5*vx**2  + potential(r)
-
+  eoverm = .5*vx**2  + potential(r) !can be used to track error
+! print*, "E before propagation: ", eoverm
   ! print*,"callking rkf, eoverm = ", eoverm
   call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
 !arguments from the original function ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
@@ -203,12 +203,16 @@ xout(3) = 0.d0
 
 
 
+
+
 ! !we have chosen r to be parallel to x
 vout(1) = yarr(3) !sqrt(2.*eoverm - ell**2/xout(1)**2 - 2.*potential(r)) !get radial velocity from position and conservation of energy
 ! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
 vout(2) = ell/xout(1) ! stick tangential velocity in the y direction
 vout(3) = 0.d0
 ! print*, "walked"
+! eoverm = .5*(sum(vout**2)) + potential(sqrt(sum(xout**2)))
+! print*, "E after propagation: ", eoverm
 
 end if
 
@@ -289,6 +293,11 @@ subroutine pets(y,t,yprimeinv)
   double precision :: x(3),vx(3) !the integrator does not need to know these
   x = amplitude_i*cos(OmegaSHO*t+phase_i)
   vx = -amplitude_i*OmegaSHO*sin(OmegaSHO*t+phase_i)
+
+
+  ! open(92,file = "intvals_SHO.dat",access='append')
+  ! write(92,*) t, x, vx
+  ! close(92)
   ! print*,'calling step, x = ', x
 !this needs to be a loop if you have multiple species
   !y is not used
@@ -305,14 +314,20 @@ subroutine pets_sph(tau,y,yprime)
   use init_conds
   use star
   implicit none
-  double precision, intent(in) :: tau,y(2)
-  double precision, intent(out) ::  yprime(2)
+  double precision, intent(in) :: tau,y(3)
+  double precision, intent(out) ::  yprime(3)
   double precision :: omega_i, time, r, vr,vdot
   ! double precision ::
 
   time = y(1)
-  r = abs(y(2))
+  ! Zero crossing
+  r = (y(2))
   vr = y(3)
+  if (r .lt. 0.d0) then
+    r = -r
+    vr = -vr
+  end if
+
 
   !!commented out attempt to integrate single equation only
   ! things become problematic when the particle turns around.
@@ -331,7 +346,7 @@ subroutine pets_sph(tau,y,yprime)
 
 
 ! open(92,file = "intvals.dat",access='append')
-! write(92,*) r, potential(r), vr, eoverm, ell
+! write(92,*)time, r, potential(r), vr, eoverm, ell,.5*(vr**2+ell**2/r**2)
 ! close(92)
 ! print*,'calling step, r = ', r, "vr = ", vr, "potential = ", potential(r), "eoverm = ", eoverm,"ell = ", ell
 !this needs to be a loop if you have multiple species
