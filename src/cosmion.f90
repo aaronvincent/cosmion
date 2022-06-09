@@ -19,11 +19,11 @@ call random_seed
 
 
 !masses in g
-mdm = 4.*GeV
+mdm = 4*GeV
 sigsd = 1.d-37 !cm^2
 anTemp = .false.
 anDens = .false.
-anPot = .false. !treat potential as SHO and use analytic trajectory expressions for x, v
+anPot = .true. !treat potential as SHO and use analytic trajectory expressions for x, v
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
@@ -37,9 +37,9 @@ end if
 
 isinside_flag = .true.
 
-Nsteps =1e5
+Nsteps =1
 
-outfile = 'positions2.dat'
+outfile = 'positions_SHO.dat'
 
 call init_star(anTemp,anDens,anPot,mdm,sigSD)
 
@@ -50,16 +50,16 @@ open(94,file = outfile)
 
 
 call spawn(xi,vi)
-!spawining at a specific place, for testing
-! xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
-! vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
+! spawining at a specific place, for testing
+xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
+vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
 print*,xi, vi
 
 ! big loop
 call timestamp
 do i = 1,Nsteps
 call propagate(xi,vi,x,v,time)
-
+print*,"time: ", time, 'r: ', sqrt(sum(x**2))
 !this check doesn't actually work, since the RKF solver will keep trying to integrate past rsun
 !it dies without closing the file, I think we lose everything
 call isinside(x,isinside_flag)

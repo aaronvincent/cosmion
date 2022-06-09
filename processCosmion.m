@@ -44,6 +44,7 @@ sigma = 1e-37;
 
 xvec = positions_SHO(:,1:3);
 vvec = positions_SHO(:,4:6);
+potan = positions_SHO(:,end);
 
 r = sqrt(sum(xvec.^2,2));
 
@@ -62,6 +63,8 @@ vperp(j,:) = vvec(j,:) - vr(j)*xhat(j,:);
 end
 vperpAmp = sqrt(sum(vperp.^2,2));
 
+E = .5*sum(vvec.^2,2) + potan;
+
 histogram(vr,[-1:.01:1]*1e8,'normalization','pdf')
 hold on
 
@@ -71,6 +74,7 @@ load positions.dat
 
 xvec = positions(:,1:3);
 vvec = positions(:,4:6);
+potnum = positions(:,end);
 
 rnum = sqrt(sum(xvec.^2,2));
 
@@ -88,27 +92,35 @@ for j = 1:length(xvec)
 vperpNum(j,:) = vvec(j,:) - vrNum(j)*xhat(j,:);
 end
 vperpAmpNum = sqrt(sum(vperpNum.^2,2));
+Enum = .5*sum(vvec.^2,2) + potnum;
 
 
 
 histogram(vrNum,[-1:.01:1]*1e8,'normalization','pdf')
-xlabel('v_r')
+xlabel('$v_r$','fontsize',16,'interpreter','latex')
 legend('SHO', 'NUMERICAl')
 figure
-histogram(vperpAmp,[-1:.01:1]*1e8,'normalization','pdf')
+histogram(vperpAmp,[-1:.01:1]*1e8,'normalization','pdf')    
 hold on
 histogram(vperpAmpNum,[-1:.01:1]*1e8,'normalization','pdf')
 
-xlabel('v_\theta')
+xlabel('$v_\theta$','fontsize',16,'interpreter','latex')
  %% 
 figure
 histogram(r,[0:.001:.2]*Rsun,'normalization','pdf')
 hold on
 rnum = sqrt(sum(positions(:,1:3).^2,2));
 histogram(rnum,[0:.001:.2]*Rsun,'normalization','pdf')
-xlabel('r')
+xlabel('$r$','fontsize',16,'interpreter','latex')
 
 
 [R, Etrans,Q, K, nx, sigsOut,nxIso,nxLTE, Ltrans,LPS,LLTE,Rchi] = luminosity_constrho_slim(sigma,mx ,0, 0,220e5,1,1);
 plot(R*Rsun,R.^2*Rsun.^2.*nxIso./trapz(R*Rsun,R.^2*Rsun.^2.*nxIso),'linewidth',2)
 set(gca,'xlim',[0,.2]*Rsun)
+
+
+figure
+histogram(E,'normalization','pdf')
+hold on
+histogram(Enum,'normalization','pdf')
+xlabel('$E$','fontsize',16,'interpreter','latex')

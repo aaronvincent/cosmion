@@ -79,11 +79,12 @@ double precision :: y, yp, time, tout, relerr, abserr
 double precision :: yarr(3), yparr(3) !these are used in the numerical potential case
 double precision ::  vr, vtheta,taustart
 double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnitude
+integer :: intcounter
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-6
-abserr = 1.d-10
+relerr = 1.d-4
+abserr = 1.d-7
 flag = 1
 counter = 0
 
@@ -91,6 +92,8 @@ counter = 0
 !1) draw an optical depth
 call random_number(a)
 tau = -log(1.d0-a)
+! tau = 5.
+! print*,'WARNING Optical depth is hardcoded in; Walk.f90 L95'
 
 ! 2) Integrate the time it takes to reach that optical depth
 
@@ -142,6 +145,17 @@ if (anPot) then
 
   call rkf45 (pets, time, yp, y,tau, relerr, abserr, flag )
   tout = time
+
+  do while (flag .eq. 4)
+    intcounter = intcounter + 1
+  call rkf45 (pets, time, yp, y,tau, relerr, abserr, flag )
+  tout = time
+  if (intcounter .eq. 1000) then
+    print*,"You might be stuck in an infinite loop?"
+  end if
+  ! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
+  end do
+
   ! print*, "took ", counter, ' tries ', ' guess ', tau*mfp/4., 'actual ', tout
   ! print*,"using pro move: "
   ! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', t
@@ -190,10 +204,24 @@ else !numerically integrate potential
   eoverm = .5*vx**2  + potential(r) !can be used to track error
 ! print*, "E before propagation: ", eoverm
   ! print*,"callking rkf, eoverm = ", eoverm
+
+intcounter = 0
   call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
 !arguments from the original function ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 ! print*,"called"
 tout = yarr(1) !time
+
+! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
+!If the integrator reaches a max number of steps it aborts with flag 4
+do while (flag .eq. 4)
+  intcounter = intcounter + 1
+call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+tout = yarr(1)
+if (intcounter .eq. 1000) then
+  print*,"You might be stuck in an infinite loop?"
+end if
+! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
+end do
 !because we're not tracking angles here, we will just reset the particle position
 !at x = r, other coordinates zero.
 !We assign radial and tangential velocity in the xy plane, with vz = 0
@@ -296,7 +324,7 @@ subroutine pets(y,t,yprimeinv)
 
 
   ! open(92,file = "intvals_SHO.dat",access='append')
-  ! write(92,*) t, x, vx
+  ! write(92,*) y, t, x, vx
   ! close(92)
   ! print*,'calling step, x = ', x
 !this needs to be a loop if you have multiple species
@@ -345,9 +373,9 @@ subroutine pets_sph(tau,y,yprime)
   ! vr = -1.*vdot/abs(vdot)*vr
 
 
-! open(92,file = "intvals.dat",access='append')
-! write(92,*)time, r, potential(r), vr, eoverm, ell,.5*(vr**2+ell**2/r**2)
-! close(92)
+open(92,file = "intvals.dat",access='append')
+write(92,*)tau, time, r, potential(r), vr, eoverm, ell,.5*(vr**2+ell**2/r**2)
+close(92)
 ! print*,'calling step, r = ', r, "vr = ", vr, "potential = ", potential(r), "eoverm = ", eoverm,"ell = ", ell
 !this needs to be a loop if you have multiple species
   !y is not used

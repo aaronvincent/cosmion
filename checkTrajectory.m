@@ -5,7 +5,7 @@ vi = [-11372871.430080282,        73591.840957018765,       -16765518.336228890 
 phase_i = atan2(-vi,xi*Omega_SHO);
 A_i = xi./cos(phase_i);
 
-t = linspace(0,3e3,1000)
+t = linspace(0,13060.479507549448 ,1000)
 
 for k = 1:length(t)
 x = A_i.*cos(Omega_SHO*t(k) + phase_i);
@@ -18,3 +18,4 @@ vmag(k) = sqrt(v*v');
 end
 
 plot(t,r)
+plot(t(end),r(end),'x')
