@@ -10,7 +10,7 @@ SRCDIR = ./src
 
 MAIN = cosmion.o
 MFSHR = init_conds.o star.o walk.o
-NUMFOBJ =  num.o rkf45.o rkf45full.o
+NUMFOBJ =  num.o rkf45full_n2.o rkf45.o rkf45full.o
 
 
 
@@ -19,7 +19,7 @@ NUMFOBJ =  num.o rkf45.o rkf45full.o
 
 
 csharedlib.so: $(MFSHR)  $(NUMFOBJ)
-	$(FC) $(FOPT) -shared -o $@ $(MFSHR)  $(NUMFOBJ)
+	$(FC) $(FOPT) -shared -o $@  $(NUMFOBJ) $(MFSHR) 
 
 cosmion.x: $(MAIN)  csharedlib.so
 	${FC} $(FOPT) -L. -Wl,-rpath,. -o cosmion.x $(MAIN) csharedlib.so

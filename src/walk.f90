@@ -291,16 +291,91 @@ vout = vout + s
 
 end subroutine collide
 
-!this reprocesses
-! subroutine reprocess(Nsteps,ratio,infile)
-!   use star
-!   implicit none
-!   integer, intent(in):: Nsteps, ratio
-!   character*100 :: infile
-!   double precision :: x1(Nsteps),x2(Nsteps),x3(Nsteps),r(Nsteps)
-!
-!
-! end subroutine reprocess
+! this reprocesses the run to provide equal-time positions and velocities. Required to
+!adequately represent the phase space distribution
+subroutine reprocess(Nsteps,times,ratio,infile,outfile)
+  use star
+  implicit none
+  interface
+    subroutine step_sph(t,y,yp)     !integrand for numerical potential
+      double precision, intent(in) :: t,y(2)
+      double precision, intent(out) :: yp(2)
+    end subroutine
+  end interface
+
+  integer, intent(in):: Nsteps, ratio
+  double precision, intent(in) :: times(Nsteps)
+  double precision, parameter :: relerr = 1.d-5, abserr = 1.d-8
+  character*100 :: infile,outfile
+  ! double precision :: x1(Nsteps),x2(Nsteps),x3(Nsteps),r(Nsteps)
+  double precision :: x(3), v(3), vout(3), pot, r, vx
+  double precision :: dt, time, tcoll, yarr(2),yparr(2),tvar
+  double precision :: ellvec(3), ell,vtheta,vr,tend,toffset, ttot
+  integer :: i, intcounter, flag
+
+  ! compute time steps
+  ttot = sum(times)
+  dt = ttot/dble(nsteps*ratio)
+  toffset = 0.d0
+  flag = 1
+
+  open(45,file = infile)
+  open(46,file = outfile)
+  do i = 1,Nsteps
+    print*,'reprocessing, collision number ', i
+     !ignoring potential, vout should do nothing
+    read(45,*)  x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time
+
+    ellvec(3) = x(1)*v(2)-x(2)*v(1)
+    ellvec(2) = x(3)*v(1)-x(1)*v(3)
+    ellvec(1) = x(2)*v(3)-x(3)*v(2)
+    ell = sqrt(sum(ellvec**2))
+    r  = sqrt(sum(x**2))
+    vx = sqrt(sum(v**2))
+    vr = sum(v*x)/r
+
+
+    tvar = toffset
+    print*,'toffset = ', toffset
+    ! tend = 0;
+
+    !step through trajectory between collisions, integrating each time
+    do while (tvar+dt .lt. times(i+1))
+      !offset time to account for the difference between the end of the
+      !last step and subsequent collision
+      !computed before step is updated
+      toffset = times(i+1) - tvar
+      print*," time: ", tvar, "next time: ", times(i+1), "dt: ", dt
+      yarr(1) = r
+      yarr(2) = vr!velocity in R direction
+      tend = tend+dt !so many time variables
+      print*, "tvar ", tvar, "tend ", tend
+      call rkf45full_n2 (step_sph,2, yarr, yparr, tvar,tend, relerr, abserr, flag )
+      !catch incomplete integrations
+        do while (flag .eq. 4)
+          intcounter = intcounter + 1
+        call rkf45full_n2 (step_sph,2, yarr, yparr, tvar,tend, relerr, abserr, flag )
+
+        if (intcounter .eq. 1000) then
+          print*,"You might be stuck in an infinite loop?"
+        end if
+        end do
+        print*, "tvar ", tvar, "tend ", tend, "flag ", flag
+        tvar = tend
+        r = yarr(1)
+        vr = yarr(2)
+        vtheta = ell/r
+        !you've integrated one time step, write to file and move on to the next One
+        write(46,*) r, vr, vtheta, tvar
+
+    end do
+
+  end do
+
+  close(45)
+  close(46)
+
+end subroutine reprocess
 
 
   !this goes into the RK solver
@@ -385,9 +460,9 @@ subroutine pets_sph(tau,y,yprime)
   ! vr = -1.*vdot/abs(vdot)*vr
 
 
-open(92,file = "intvals.dat",access='append')
-write(92,*)tau, time, r, potential(r), vr, eoverm, ell,.5*(vr**2+ell**2/r**2)
-close(92)
+! open(92,file = "intvals.dat",access='append')
+! write(92,*)tau, time, r, potential(r), vr, eoverm, ell,.5*(vr**2+ell**2/r**2)
+! close(92)
 ! print*,'calling step, r = ', r, "vr = ", vr, "potential = ", potential(r), "eoverm = ", eoverm,"ell = ", ell
 !this needs to be a loop if you have multiple species
   !y is not used
@@ -406,6 +481,32 @@ close(92)
   ! print*, "g of r ", gofr(r)
 
 end subroutine pets_sph
+
+
+
+!This integrand is used for reprocessing. It integrates
+!orbits in time (not optical depth)
+subroutine step_sph(time,y,yprime)
+  use init_conds
+  use star
+  implicit none
+  double precision, intent(in) :: time, y(2)
+  double precision, intent(out) ::  yprime(2)
+  double precision :: omega_i, r, vr,vdot
+
+  ! time
+  ! Zero crossing
+  r = y(1)
+  vr = y(2)
+  if (r .lt. 0.d0) then
+    r = -r
+    vr = -vr
+  end if
+
+  yprime(1) = vr != dr/dt
+  yprime(2) = (gofr(r) + ell**2/r**3) !dv/dt
+
+end subroutine step_sph
 
 
 

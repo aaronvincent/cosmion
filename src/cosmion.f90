@@ -3,13 +3,19 @@ use star
 implicit none
 
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time !the DM coordinates
+double precision, allocatable :: times(:) !makes reprocessing a bit easier to keep this in memory
 double precision, parameter :: GeV = 1.78266d-24
 logical isinside_flag
 
-character*100 :: outfile
+character*100 :: outfile, reprofile
 ! logical antemp, andens, anpot
 ! double precision mdm
-integer Nsteps, i
+integer Nsteps, i,ratio
+
+
+
+outfile = 'positions_SHO.dat'
+reprofile = 'rep_pos.dat'
 
 !set parameters
 
@@ -23,7 +29,7 @@ mdm = 10*GeV
 sigsd = 1.d-36 !cm^2
 anTemp = .false.
 anDens = .false.
-anPot = .true. !treat potential as SHO and use analytic trajectory expressions for x, v
+anPot = .false. !treat potential as SHO and use analytic trajectory expressions for x, v
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
@@ -37,9 +43,10 @@ end if
 
 isinside_flag = .true.
 
-Nsteps =1e6
+Nsteps =1e5
 
-outfile = 'positions_SHO.dat'
+allocate(times(Nsteps))
+
 
 call init_star(anTemp,anDens,anPot,mdm,sigSD)
 
@@ -73,7 +80,7 @@ r = sqrt(sum(x**2))
 write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time, potential(r)
 xi = x
 vi = vout
-
+times(i) = time
 
 ! print*,x,v
 end do
@@ -85,7 +92,8 @@ call timestamp
 !
 ! end do
 ! Now we reprocess our file
-
+ratio = 10
+call reprocess(Nsteps,times,ratio,outfile,reprofile)
 
 
 end program
