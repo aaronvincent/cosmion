@@ -19,8 +19,8 @@ call random_seed
 
 
 !masses in g
-mdm = 4*GeV
-sigsd = 1.d-37 !cm^2
+mdm = 10*GeV
+sigsd = 1.d-36 !cm^2
 anTemp = .false.
 anDens = .false.
 anPot = .true. !treat potential as SHO and use analytic trajectory expressions for x, v
@@ -37,7 +37,7 @@ end if
 
 isinside_flag = .true.
 
-Nsteps =1
+Nsteps =1e6
 
 outfile = 'positions_SHO.dat'
 
@@ -51,15 +51,15 @@ open(94,file = outfile)
 
 call spawn(xi,vi)
 ! spawining at a specific place, for testing
-xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
-vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
+! xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
+! vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
 print*,xi, vi
 
 ! big loop
 call timestamp
 do i = 1,Nsteps
 call propagate(xi,vi,x,v,time)
-print*,"time: ", time, 'r: ', sqrt(sum(x**2))
+! print*,"time: ", time, 'r: ', sqrt(sum(x**2))
 !this check doesn't actually work, since the RKF solver will keep trying to integrate past rsun
 !it dies without closing the file, I think we lose everything
 call isinside(x,isinside_flag)
@@ -75,9 +75,6 @@ xi = x
 vi = vout
 
 
-
-
-
 ! print*,x,v
 end do
 close(94)
@@ -87,6 +84,7 @@ call timestamp
 ! call collide()
 !
 ! end do
+! Now we reprocess our file
 
 
 

@@ -291,6 +291,18 @@ vout = vout + s
 
 end subroutine collide
 
+!this reprocesses
+! subroutine reprocess(Nsteps,ratio,infile)
+!   use star
+!   implicit none
+!   integer, intent(in):: Nsteps, ratio
+!   character*100 :: infile
+!   double precision :: x1(Nsteps),x2(Nsteps),x3(Nsteps),r(Nsteps)
+!
+!
+! end subroutine reprocess
+
+
   !this goes into the RK solver
   !y in this subroutine is the function we're integrating (i.e. the optical depth, tau)
 subroutine step(t,y,yprime)
