@@ -71,10 +71,10 @@ interface
 double precision, intent(in) :: xin(3),vin(3)
 double precision, intent(out) :: xout(3),vout(3)
 double precision :: a, tau,r,vx
-double precision :: T,n,mfp
+double precision :: T,n,mfp,tvec(3000),yarrout(3000,3)
 ! double precision :: phase_i(3), amplitude_i(3) !initial conditions now in module
 !for the rkf45
-integer :: neqn, flag,counter
+integer :: neqn, flag,counter,fcounter
 double precision :: y, yp, time, tout, relerr, abserr
 double precision :: yarr(3), yparr(3) !these are used in the numerical potential case
 double precision ::  vr, vtheta,taustart
@@ -206,17 +206,41 @@ else !numerically integrate potential
   ! print*,"callking rkf, eoverm = ", eoverm
 
 intcounter = 0
-  call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+
+  ! call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+  call rkf45fullhistory (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag,tvec,yarrout )
 !arguments from the original function ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 ! print*,"called"
 tout = yarr(1) !time
+print*,"tvec at 2", yarrout(1:5,:)
+
+!write all computed trajectory positions. first column is tau, then time, r, vr
+open(99,file='rep_pos.dat',access='append')
+fcounter = 0
+do while (tvec(fcounter+1) .ne. 0.d0)
+  fcounter = fcounter+1
+write(99,*) tvec(fcounter), yarrout(fcounter,1),yarrout(fcounter,2),yarrout(fcounter,3)
+end do
+close(99)
+tvec = tvec*0.d0
 
 ! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
 !If the integrator reaches a max number of steps it aborts with flag 4
 do while (flag .eq. 4)
   intcounter = intcounter + 1
-call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+! call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag,tvec,yarrout )
 tout = yarr(1)
+
+!!!!write trajectory positions again
+open(99,file='rep_pos.dat',access='append')
+fcounter = 0
+do while (tvec(fcounter+1) .ne. 0.d0)
+  fcounter = fcounter+1
+write(99,*) tvec(fcounter), yarrout(fcounter,:)
+end do
+close(99)
+tvec = tvec*0.d0
 if (intcounter .eq. 1000) then
   print*,"You might be stuck in an infinite loop?"
 end if
@@ -293,89 +317,89 @@ end subroutine collide
 
 ! this reprocesses the run to provide equal-time positions and velocities. Required to
 !adequately represent the phase space distribution
-subroutine reprocess(Nsteps,times,ratio,infile,outfile)
-  use star
-  implicit none
-  interface
-    subroutine step_sph(t,y,yp)     !integrand for numerical potential
-      double precision, intent(in) :: t,y(2)
-      double precision, intent(out) :: yp(2)
-    end subroutine
-  end interface
-
-  integer, intent(in):: Nsteps, ratio
-  double precision, intent(in) :: times(Nsteps)
-  double precision, parameter :: relerr = 1.d-5, abserr = 1.d-8
-  character*100 :: infile,outfile
-  ! double precision :: x1(Nsteps),x2(Nsteps),x3(Nsteps),r(Nsteps)
-  double precision :: x(3), v(3), vout(3), pot, r, vx
-  double precision :: dt, time, tcoll, yarr(2),yparr(2),tvar
-  double precision :: ellvec(3), ell,vtheta,vr,tend,toffset, ttot
-  integer :: i, intcounter, flag
-
-  ! compute time steps
-  ttot = sum(times)
-  dt = ttot/dble(nsteps*ratio)
-  toffset = 0.d0
-  flag = 1
-
-  open(45,file = infile)
-  open(46,file = outfile)
-  do i = 1,Nsteps
-    print*,'reprocessing, collision number ', i
-     !ignoring potential, vout should do nothing
-    read(45,*)  x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time
-
-    ellvec(3) = x(1)*v(2)-x(2)*v(1)
-    ellvec(2) = x(3)*v(1)-x(1)*v(3)
-    ellvec(1) = x(2)*v(3)-x(3)*v(2)
-    ell = sqrt(sum(ellvec**2))
-    r  = sqrt(sum(x**2))
-    vx = sqrt(sum(v**2))
-    vr = sum(v*x)/r
-
-
-    tvar = toffset
-    print*,'toffset = ', toffset
-    ! tend = 0;
-
-    !step through trajectory between collisions, integrating each time
-    do while (tvar+dt .lt. times(i+1))
-      !offset time to account for the difference between the end of the
-      !last step and subsequent collision
-      !computed before step is updated
-      toffset = times(i+1) - tvar
-      print*," time: ", tvar, "next time: ", times(i+1), "dt: ", dt
-      yarr(1) = r
-      yarr(2) = vr!velocity in R direction
-      tend = tend+dt !so many time variables
-      print*, "tvar ", tvar, "tend ", tend
-      call rkf45full_n2 (step_sph,2, yarr, yparr, tvar,tend, relerr, abserr, flag )
-      !catch incomplete integrations
-        do while (flag .eq. 4)
-          intcounter = intcounter + 1
-        call rkf45full_n2 (step_sph,2, yarr, yparr, tvar,tend, relerr, abserr, flag )
-
-        if (intcounter .eq. 1000) then
-          print*,"You might be stuck in an infinite loop?"
-        end if
-        end do
-        print*, "tvar ", tvar, "tend ", tend, "flag ", flag
-        tvar = tend
-        r = yarr(1)
-        vr = yarr(2)
-        vtheta = ell/r
-        !you've integrated one time step, write to file and move on to the next One
-        write(46,*) r, vr, vtheta, tvar
-
-    end do
-
-  end do
-
-  close(45)
-  close(46)
-
-end subroutine reprocess
+! subroutine reprocess(Nsteps,times,ratio,infile,outfile)
+!   use star
+!   implicit none
+!   interface
+!     subroutine step_sph(t,y,yp)     !integrand for numerical potential
+!       double precision, intent(in) :: t,y(2)
+!       double precision, intent(out) :: yp(2)
+!     end subroutine
+!   end interface
+!
+!   integer, intent(in):: Nsteps, ratio
+!   double precision, intent(in) :: times(Nsteps)
+!   double precision, parameter :: relerr = 1.d-5, abserr = 1.d-8
+!   character*100 :: infile,outfile
+!   ! double precision :: x1(Nsteps),x2(Nsteps),x3(Nsteps),r(Nsteps)
+!   double precision :: x(3), v(3), vout(3), pot, r, vx
+!   double precision :: dt, time, tcoll, yarr(2),yparr(2),tvar
+!   double precision :: ellvec(3), ell,vtheta,vr,tend,toffset, ttot
+!   integer :: i, intcounter, flag
+!
+!   ! compute time steps
+!   ttot = sum(times)
+!   dt = ttot/dble(nsteps*ratio)
+!   toffset = 0.d0
+!   flag = 1
+!
+!   open(45,file = infile)
+!   open(46,file = outfile)
+!   do i = 1,Nsteps
+!     print*,'reprocessing, collision number ', i
+!      !ignoring potential, vout should do nothing
+!     read(45,*)  x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time
+!
+!     ellvec(3) = x(1)*v(2)-x(2)*v(1)
+!     ellvec(2) = x(3)*v(1)-x(1)*v(3)
+!     ellvec(1) = x(2)*v(3)-x(3)*v(2)
+!     ell = sqrt(sum(ellvec**2))
+!     r  = sqrt(sum(x**2))
+!     vx = sqrt(sum(v**2))
+!     vr = sum(v*x)/r
+!
+!
+!     tvar = toffset
+!     print*,'toffset = ', toffset
+!     ! tend = 0;
+!
+!     !step through trajectory between collisions, integrating each time
+!     do while (tvar+dt .lt. times(i+1))
+!       !offset time to account for the difference between the end of the
+!       !last step and subsequent collision
+!       !computed before step is updated
+!       toffset = times(i+1) - tvar
+!       print*," time: ", tvar, "next time: ", times(i+1), "dt: ", dt
+!       yarr(1) = r
+!       yarr(2) = vr!velocity in R direction
+!       tend = tend+dt !so many time variables
+!       print*, "tvar ", tvar, "tend ", tend
+!       call rkf45full_n2 (step_sph,2, yarr, yparr, tvar,tend, relerr, abserr, flag )
+!       !catch incomplete integrations
+!         do while (flag .eq. 4)
+!           intcounter = intcounter + 1
+!         call rkf45full_n2 (step_sph,2, yarr, yparr, tvar,tend, relerr, abserr, flag )
+!
+!         if (intcounter .eq. 1000) then
+!           print*,"You might be stuck in an infinite loop?"
+!         end if
+!         end do
+!         print*, "tvar ", tvar, "tend ", tend, "flag ", flag
+!         tvar = tend
+!         r = yarr(1)
+!         vr = yarr(2)
+!         vtheta = ell/r
+!         !you've integrated one time step, write to file and move on to the next One
+!         write(46,*) r, vr, vtheta, tvar
+!
+!     end do
+!
+!   end do
+!
+!   close(45)
+!   close(46)
+!
+! end subroutine reprocess
 
 
   !this goes into the RK solver

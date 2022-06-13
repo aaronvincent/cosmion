@@ -25,7 +25,7 @@ call random_seed
 
 
 !masses in g
-mdm = 10*GeV
+mdm = 5*GeV
 sigsd = 1.d-36 !cm^2
 anTemp = .false.
 anDens = .false.
@@ -43,7 +43,7 @@ end if
 
 isinside_flag = .true.
 
-Nsteps =1e5
+Nsteps =2
 
 allocate(times(Nsteps))
 
@@ -51,6 +51,10 @@ allocate(times(Nsteps))
 call init_star(anTemp,anDens,anPot,mdm,sigSD)
 
 ! print*,"potential at 0.5 ", potential(0.5d0)
+
+!wipe the trajectory history
+open(99,file=reprofile,status='replace')
+close(99)
 
 open(94,file = outfile)
 
@@ -92,8 +96,8 @@ call timestamp
 !
 ! end do
 ! Now we reprocess our file
-ratio = 10
-call reprocess(Nsteps,times,ratio,outfile,reprofile)
+! ratio = 10
+! call reprocess(Nsteps,times,ratio,outfile,reprofile)
 
 
 end program
