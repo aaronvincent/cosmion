@@ -49,7 +49,7 @@ do i = 1,Nsteps
         call collide(x,v,vout)
         xi = x
         vi = vout
-    else
+    else if (outside_flag == 1) then
         vout = v
         xi = x
         vi = v
@@ -59,6 +59,12 @@ do i = 1,Nsteps
         !call keplerian_rad(xi,vi,x,v,time)
         outside_flag = 1
         vout = v
+        xi = x
+        vi = v
+    else if (outside_flag == 2) then
+        call spawn(x,v)
+        vout = v
+        time = 0.d0
         xi = x
         vi = v
     end if
