@@ -144,7 +144,6 @@ module star
             end if
           end do
           close(99)
-          nlines = nlines -1
 
           !allocate the arrays
           allocate(tab_mencl(nlines))

@@ -66,11 +66,7 @@ interface
     double precision, intent(in) :: t,y
     double precision, intent(out) :: yp
   end subroutine
-  subroutine keplerian(xin,vin,xout,vout,tout)
-    double precision, intent(in) :: xin(3),vin(3)
-    double precision, intent(out) :: xout(3),vout(3),tout
-  end subroutine
-  end interface
+end interface
 
 double precision, intent(in) :: xin(3),vin(3)
 double precision, intent(out) :: xout(3),vout(3)
@@ -158,7 +154,7 @@ xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
 xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
 r = sqrt(sum(xout**2))
 ! This checks if the particle left the star during the integration.
-if (outside_flag==1 .or. r>Rsun*0.9995d0) then  ! Use 0.9995 times the radius because of interp1 subroutine
+if (outside_flag==1 .or. r>Rsun) then
   ! print*,"Elvis has left the building"
   ! We now have to determine the path from the particle's initial position to the solar radius.
 
@@ -169,7 +165,7 @@ if (outside_flag==1 .or. r>Rsun*0.9995d0) then  ! Use 0.9995 times the radius be
   dt = 2.d-4 ! Determines precision
   xout = xin
   r = sqrt(sum(xout**2))
-  do while (r/Rsun>=0.99949d0) ! Use 0.9995 times the radius because of interp1 subroutine
+  do while (r/Rsun>=0.99999d0)
     tout = tout+dt
     xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
     xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
@@ -195,7 +191,7 @@ if (outside_flag==1 .or. r>Rsun*0.9995d0) then  ! Use 0.9995 times the radius be
   !end if
   !! This moves the particle to the edge of the star.
   !dt = 10.d0
-  !do while (r<Rsun*0.99949) ! Use 0.9995 times the radius because of interp1 subroutine
+  !do while (r<Rsun*0.99999)
   !  tout = tout+dt
   !  xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
   !  xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
@@ -205,8 +201,8 @@ if (outside_flag==1 .or. r>Rsun*0.9995d0) then  ! Use 0.9995 times the radius be
   !  vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
   !  r = sqrt(sum(xout**2))
   !  vr = sum(xout*vout) / r
-  !  if (r>Rsun*0.9994901 .or. vr<0 .and. going_away) then
-  !  !if (r>Rsun*0.9994901) then
+  !  if (r>Rsun*0.9999901 .or. vr<0 .and. going_away) then
+  !  !if (r>Rsun*0.9999901) then
   !    tout = tout-dt
   !    xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
   !    xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
@@ -217,10 +213,9 @@ if (outside_flag==1 .or. r>Rsun*0.9995d0) then  ! Use 0.9995 times the radius be
   !end do
 
   ! This determines how long it takes the particle to reach the boundary of the star.
-  ! We use 0.9995 times the stellar radius because of interp1 subroutine's limits.
   phase_r = atan(-(sum(xout*vout))/(omegaSHO*(sum(xout**2)-(sum(amplitude_i**2)/2))))
   amplitude_r = (sum(xout**2)-sum(amplitude_i**2)/2)/cos(phase_r)
-  cosine = acos(((Rsun*0.99949005d0)**2-sum(amplitude_i**2)/2)/amplitude_r)
+  cosine = acos(((Rsun*0.99999005d0)**2-sum(amplitude_i**2)/2)/amplitude_r)
   if (phase_r>0 .and. cosine<abs(phase_r)) then
     cosine = 2*pi - cosine
   else if (phase_r<0 .and. cosine<abs(phase_r)) then
@@ -303,7 +298,7 @@ subroutine step(t,y,yprime)
   ! print*,'calling step, x = ', x
 !this needs to be a loop if you have multiple species
   !y is not used
-  call omega(x,vx,phase_i,amplitude_i,yprime)
+  call omega(x,vx,yprime)
 
 end subroutine step
 
@@ -321,22 +316,22 @@ subroutine pets(y,t,yprimeinv)
   ! print*,'calling step, x = ', x
 !this needs to be a loop if you have multiple species
   !y is not used
-  call omega(x,vx,phase_i,amplitude_i,yprime)
+  call omega(x,vx,yprime)
   yprimeinv = 1.d0/yprime
 
 end subroutine pets
 
 
-subroutine omega(xin,vin,phase_i,amplitude_i,omega_out) !,omegaprime)
+subroutine omega(xin,vin,omega_out) !,omegaprime)
   !compute omega and its derivative given the position and velocity of a particle
   !only scattering with a single species (hydrogen)
   use star
   implicit none
-  double precision, intent(in) :: xin(3),vin(3),phase_i(3),amplitude_i(3)
+  double precision, intent(in) :: xin(3),vin(3)
   double precision :: vT,r,v2,y,omega_out,omegaprime,yprime,accel(3),wprefactor
   ! The following conditional checks if the particle is inside the star.
   ! If it left the star, it raises a flag to be detected after the integration is complete.
-  if (sqrt(sum(xin**2)) .ge. Rsun*0.9995d0) then ! Use 0.9995 times the radius because of interp1 subroutine
+  if (sqrt(sum(xin**2)) .ge. Rsun) then
     !omega_out = 0.0
     !omega_out = omega_out/omega_out
     outside_flag = 1
@@ -378,6 +373,10 @@ subroutine keplerian(xin,vin,xout,vout,tout)
       double precision, intent(in) :: x(3),y(3)
       double precision, intent(out) :: z(3)
     end subroutine
+    subroutine keplerian_rad(xin,vin,xout,vout,tout)
+      double precision, intent(in) :: xin(3),vin(3)
+      double precision, intent(out) :: xout(3),vout(3),tout
+    end subroutine
   end interface
   double precision, intent(in) :: xin(3),vin(3)
   double precision, intent(out) :: xout(3),vout(3),tout
@@ -397,8 +396,7 @@ subroutine keplerian(xin,vin,xout,vout,tout)
   if (vtot >= vesc) then
     print*,"The particle has escaped!"
     ! We'll have to stop and respawn the particle in this case.
-    call spawn(xout,vout)
-    tout = 0
+    outside_flag = 2
   else if (vr/vtot > 1.d0-1.d-10) then
     ! Use the Keplerian function for a radial emission.
     call keplerian_rad(xin,vin,xout,vout,tout)
@@ -497,8 +495,7 @@ subroutine keplerian_rad(xin,vin,xout,vout,tout)
   if (vtot >= vesc) then
     print*,"The particle has escaped!"
     ! We'll have to stop and respawn the particle in this case.
-    call spawn(xout,vout)
-    tout = 0
+    outside_flag = 2
   else
     !print*,"It's coming back"
     ! Do Keplerian stuff
