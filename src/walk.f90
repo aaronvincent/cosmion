@@ -43,6 +43,10 @@ subroutine spawn(x,v)
   v(2) = Sqrt(kB*T/mdm)*random_normal()
   v(3) = Sqrt(kB*T/mdm)*random_normal()
 
+  ! Throws the particle out of the star in one step, for testing
+  !x = (/37d9,37d9,37d9/)
+  !v = (/0d7,54d7,32d7/)
+
 ! print*,'A random number ', random_normal()
 
 end subroutine spawn
@@ -62,16 +66,18 @@ interface
     double precision, intent(in) :: t,y
     double precision, intent(out) :: yp
   end subroutine
-  end interface
+end interface
 
 double precision, intent(in) :: xin(3),vin(3)
 double precision, intent(out) :: xout(3),vout(3)
-double precision :: a, tau,r,vx
-double precision :: T,n,mfp
+double precision :: a,tau,r,vx
+double precision :: T,n,mfp,dt
+double precision :: phase_r,amplitude_r,cosine
 ! double precision :: phase_i(3), amplitude_i(3) !initial conditions now in module
 !for the rkf45
 integer :: neqn, flag,counter
 double precision :: y, yp, time, tout, relerr, abserr
+integer :: intcounter
 
 time = 0.d0
 tout = 0.d0
@@ -129,8 +135,95 @@ tout = tau*mfp
 time = 0.d0
 flag = 1
 y = 0.d0
-call rkf45 (pets, t, yp, y,tau, relerr, abserr, flag )
-tout = t
+call rkf45 (pets, time, yp, y,tau, relerr, abserr, flag )
+tout = time
+
+do while (flag .eq. 4)
+  print*,"Too many steps for integration."
+  intcounter = intcounter + 1
+  call rkf45 (pets, time, yp, y,tau, relerr, abserr, flag )
+  tout = time
+  if (intcounter .eq. 1000) then
+    print*,"You might be stuck in an infinite loop?"
+  end if
+  ! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
+end do
+
+xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
+xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
+xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
+r = sqrt(sum(xout**2))
+! This checks if the particle left the star during the integration.
+if (outside_flag==1 .or. r>Rsun) then
+  ! print*,"Elvis has left the building"
+  ! We now have to determine the path from the particle's initial position to the solar radius.
+
+  ! The Keplerian orbit places the particle at the boundary of the star.
+  ! So, if the particle is already outside the star, this moves it inside the boudary.
+  ! This should only take one step, which is a negligible time that is later ignored.
+  tout = 0.d0
+  dt = 2.d-4 ! Determines precision
+  xout = xin
+  r = sqrt(sum(xout**2))
+  do while (r/Rsun>=0.99999d0)
+    tout = tout+dt
+    xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
+    xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
+    xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
+    r = sqrt(sum(xout**2))
+  end do
+  vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
+  vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
+  vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
+  if (tout/dt > 1.) then
+    print*,"Multiple steps for particle to re-enter star:",tout/dt
+  end if
+  phase_i = atan(-vout,OmegaSHO*xout)
+  amplitude_i = xout/cos(phase_i)
+
+  ! Loop and keep checking if it's at the boundary yet.
+  ! This worked, but we found a more efficient analytic solution.
+  !vr = sum(xin*vin) / r
+  !if (vr > 0.) then
+  !  going_away = .true.
+  !else
+  !  going_away = .false.
+  !end if
+  !! This moves the particle to the edge of the star.
+  !dt = 10.d0
+  !do while (r<Rsun*0.99999)
+  !  tout = tout+dt
+  !  xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
+  !  xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
+  !  xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
+  !  vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
+  !  vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
+  !  vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
+  !  r = sqrt(sum(xout**2))
+  !  vr = sum(xout*vout) / r
+  !  if (r>Rsun*0.9999901 .or. vr<0 .and. going_away) then
+  !  !if (r>Rsun*0.9999901) then
+  !    tout = tout-dt
+  !    xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
+  !    xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
+  !    xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
+  !    r = sqrt(sum(xout**2))
+  !    dt = dt/10.
+  !  end if
+  !end do
+
+  ! This determines how long it takes the particle to reach the boundary of the star.
+  phase_r = atan(-(sum(xout*vout))/(omegaSHO*(sum(xout**2)-(sum(amplitude_i**2)/2))))
+  amplitude_r = (sum(xout**2)-sum(amplitude_i**2)/2)/cos(phase_r)
+  cosine = acos(((Rsun*0.99999005d0)**2-sum(amplitude_i**2)/2)/amplitude_r)
+  if (phase_r>0 .and. cosine<abs(phase_r)) then
+    cosine = 2*pi - cosine
+  else if (phase_r<0 .and. cosine<abs(phase_r)) then
+    cosine = -cosine
+  end if
+  tout = (cosine-phase_r)/(2.*OmegaSHO)
+end if
+
 ! print*, "took ", counter, ' tries ', ' guess ', tau*mfp/4., 'actual ', tout
 ! print*,"using pro move: "
 ! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', t
@@ -205,7 +298,7 @@ subroutine step(t,y,yprime)
   ! print*,'calling step, x = ', x
 !this needs to be a loop if you have multiple species
   !y is not used
-  call omega(x,vx,phase_i,amplitude_i,yprime)
+  call omega(x,vx,yprime)
 
 end subroutine step
 
@@ -223,19 +316,27 @@ subroutine pets(y,t,yprimeinv)
   ! print*,'calling step, x = ', x
 !this needs to be a loop if you have multiple species
   !y is not used
-  call omega(x,vx,phase_i,amplitude_i,yprime)
+  call omega(x,vx,yprime)
   yprimeinv = 1.d0/yprime
 
 end subroutine pets
 
 
-subroutine omega(xin,vin,phase_i,amplitude_i,omega_out) !,omegaprime)
+subroutine omega(xin,vin,omega_out) !,omegaprime)
   !compute omega and its derivative given the position and velocity of a particle
   !only scattering with a single species (hydrogen)
   use star
   implicit none
-  double precision, intent(in) :: xin(3),vin(3),phase_i(3),amplitude_i(3)
+  double precision, intent(in) :: xin(3),vin(3)
   double precision :: vT,r,v2,y,omega_out,omegaprime,yprime,accel(3),wprefactor
+  ! The following conditional checks if the particle is inside the star.
+  ! If it left the star, it raises a flag to be detected after the integration is complete.
+  if (sqrt(sum(xin**2)) .ge. Rsun) then
+    !omega_out = 0.0
+    !omega_out = omega_out/omega_out
+    outside_flag = 1
+    return
+  end if
   r = sqrt(xin(1)**2+xin(2)**2+xin(3)**2)
   vT = sqrt(2.*kB*temperature(r)/mdm)
   v2 = vin(1)**2 + vin(2)**2 + vin(3)**2
@@ -255,16 +356,161 @@ subroutine omega(xin,vin,phase_i,amplitude_i,omega_out) !,omegaprime)
 ! print*,'y ', y, 'yprime ', yprime
 end subroutine omega
 
-!probably could be somewhere else
-subroutine isinside(x,isinside_flag)
+subroutine cross(x,y,z)
+  implicit none
+  double precision, intent(in) :: x(3),y(3)
+  double precision, intent(out) :: z(3)
+  z(1) = x(2)*y(3)-x(3)*y(2)
+  z(2) = -x(1)*y(3)+x(3)*y(1)
+  z(3) = x(1)*y(2)-x(2)*y(1)
+end subroutine
+
+subroutine keplerian(xin,vin,xout,vout,tout)
   use star
   implicit none
-  double precision, intent(in) :: x(3)
-  logical :: isinside_flag
-  ! print*, "R/Rsun ", sqrt(sum(x**2))/Rsun
-  if (sqrt(sum(x**2)) .ge. rsun) then
-    isinside_flag = .false.
-    ! print*,"flagged"
+  interface
+    subroutine cross(x,y,z)
+      double precision, intent(in) :: x(3),y(3)
+      double precision, intent(out) :: z(3)
+    end subroutine
+    subroutine keplerian_rad(xin,vin,xout,vout,tout)
+      double precision, intent(in) :: xin(3),vin(3)
+      double precision, intent(out) :: xout(3),vout(3),tout
+    end subroutine
+  end interface
+  double precision, intent(in) :: xin(3),vin(3)
+  double precision, intent(out) :: xout(3),vout(3),tout
+  double precision :: r,vr,vtot,vesc
+  double precision :: h(3),vh(3),smaj,e,theta,norm(3),plvec(3),ang
+  double precision :: area,areatot,period,c
+  ! These are for Hannah's method
+  !double precision :: e1(3),e2(3),bigtheta,anomaly,timediff,vt,theta0,newh,newe,M
+
+  ! Here we must include code for the Keplerian orbit of the particle.
+  ! Using the initial position and velocity, we find the re-entry parameters.
+  r = sqrt(sum(xin**2))
+  vr = sum(xin*vin) / r
+  vtot = sqrt(sum(vin**2))
+  vesc = 2.*Rsun*sqrt(2.*pi*GN*rhoSHO/3.)
+  ! Check if the particle exceeds the escape velocity.
+  if (vtot >= vesc) then
+    print*,"The particle has escaped!"
+    ! We'll have to stop and respawn the particle in this case.
+    outside_flag = 2
+  else if (vr/vtot > 1.d0-1.d-10) then
+    ! Use the Keplerian function for a radial emission.
+    call keplerian_rad(xin,vin,xout,vout,tout)
+  else
+    !print*,"It's coming back"
+    ! Do Keplerian stuff
+    smaj = 4.*pi*GN*Rsun**3*rhoSHO*r / (8.*pi*GN*Rsun**3*rhoSHO-3.*vtot**2*r)
+    call cross(xin,vin,h)
+    e = sqrt(1.-sum(h**2)/(smaj*4.*pi*GN*Rsun**3*rhoSHO/3.))
+    theta = acos((smaj-e**2*smaj-r)/(e*r))
+    call cross(xin,vin,norm)
+    norm = norm/sqrt(sum(norm**2))
+    call cross(norm,xin,plvec)
+    xout = cos(2.*pi-theta*2.)*xin+sin(2.*pi-theta*2.)*plvec
+    ang = acos(vr/vtot)
+    call cross(norm,xout,plvec)
+    if (cos(ang)>0) then
+      vout = cos(pi-ang)*xout+sin(pi-ang)*plvec
+    else
+      vout = cos(ang)*xout+sin(ang)*plvec
+    end if
+    vout = (vout/r)*vtot
+    period = sqrt(3.*pi*smaj**3/(GN*Rsun**3*rhoSHO))
+    areatot = pi*smaj**2*sqrt(1-e**2)
+    c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
+    area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
+    tout = (1.-area/areatot)*period
+    !print*,"a=",smaj
+    !print*,"e=",e
+    !print*,"theta=",theta
+    !print*,"norm=",norm
+    !print*,"xin=",xin
+    !print*,"vin=",vin
+    !print*,"xout=",xout
+    !print*,"vout=",vout
+    !print*,"area",area
+    !print*,"areatot",areatot
+    !print*,"tout=",tout
+    !print*,"tfrac=",tout/period
+    !print*,""
+
+    ! The below is Hannah's method of finding the position and time of re-entry.
+    ! It was used to verify that the above method is correct.
+    !M = 4./3. * pi * Rsun**3 * rhoSHO
+    !e1 = xin
+    !e1 = e1 / sqrt(sum(e1**2))
+    !e2 = vin - (sum(vin*e1))*e1
+    !e2 = e2 / sqrt(sum(e2**2))
+    !vr = sum(vin*e1)
+    !vt = sum(vin*e2)
+    !newh = Rsun*vt
+    !theta0 = atan(vr/(GN*M/newh-vt))
+    !if (theta0>0) then
+    !  theta0 = theta0+pi
+    !else if (theta0<0) then
+    !  theta0 = theta0+2.*pi
+    !end if
+    !newe = -(newh*vr)/(GN*M*sin(theta0))
+    !bigtheta = acos((newh**2-Rsun*GN*M)/(Rsun*GN*M*newe))+theta0
+    !anomaly = 2.*atan(sqrt((1.-e)/(1.+e))*tan((bigtheta-theta0)/2.))
+    !do while (abs(anomaly-(bigtheta-theta0))>pi .and. anomaly>(bigtheta-theta0))
+    !  anomaly = anomaly - 2.*pi
+    !end do
+    !do while (abs(anomaly-(bigtheta-theta0))>pi .and. anomaly<(bigtheta-theta0))
+    !  anomaly = anomaly + 2.*pi
+    !end do
+    !timediff = smaj*(smaj*sqrt(1.-e**2))*(anomaly-e*sin(anomaly))/newh
+    !print*,"original outside time:",tout
+    !print*,"new time difference:",timediff
+    !print*,"original period:",period
+    !print*,""
+  end if
+end subroutine
+
+subroutine keplerian_rad(xin,vin,xout,vout,tout)
+  use star
+  implicit none
+  interface
+    subroutine cross(x,y,z)
+      double precision, intent(in) :: x(3),y(3)
+      double precision, intent(out) :: z(3)
+    end subroutine
+  end interface
+  double precision, intent(in) :: xin(3),vin(3)
+  double precision, intent(out) :: xout(3),vout(3),tout
+  double precision :: r,vtot,vesc,vr(3)
+  double precision :: h(3),vh(3),smaj,e,theta,norm(3),plvec(3),ang
+  double precision :: area,areatot,period,c
+  ! Here we must include code for the Keplerian orbit of the particle.
+  ! Using the initial position and velocity, we find the re-entry parameters.
+  ! In this version, the particle re-enters at the same position.
+  r = sqrt(sum(xin**2))
+  vtot = sqrt(sum(vin**2))
+  vesc = 2.*Rsun*sqrt(2.*pi*GN*rhoSHO/3.)
+  ! Check if the particle exceeds the escape velocity
+  if (vtot >= vesc) then
+    print*,"The particle has escaped!"
+    ! We'll have to stop and respawn the particle in this case.
+    outside_flag = 2
+  else
+    !print*,"It's coming back"
+    ! Do Keplerian stuff
+    xout = xin
+    vr = sum(xin*vin)/r**2 * xin
+    vout = vin-2.*vr
+    call cross(xin,vin,h)
+    smaj = 4.*pi*GN*Rsun**3*rhoSHO*r / (8.*pi*GN*Rsun**3*rhoSHO-3.*vtot**2*r)
+    e = sqrt(1.-sum(h**2)/(smaj*4.*pi*GN*Rsun**3*rhoSHO/3.))
+    theta = acos((smaj-e**2*smaj-r)/(e*r))
+    period = sqrt(3.*pi*smaj**3/(GN*Rsun**3*rhoSHO))
+    areatot = pi*smaj**2*sqrt(1.-e**2)
+    c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
+    area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
+    tout = (1.-area/areatot)*period
   end if
 end subroutine
 

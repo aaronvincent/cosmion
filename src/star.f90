@@ -17,6 +17,7 @@ module star
   double precision, parameter :: hbarc = 1.97d-14,kb = 1.3807d-16
   !this goes with the Serenelli table format
   double precision :: AtomicNumber(29) !29 is is the number from the Serenelli files; if you have fewer it shouldn't matter
+  integer :: outside_flag
 
 !functions
   ! double precision :: ndensity, temperature, potential
@@ -34,6 +35,7 @@ module star
     mdm = mdm_in
     sigSD = sigSD_in
     mu = mdm/mnucg !this needs to be fixed for > 1 isotope
+    outside_flag = 0
 
 
 !if anything is not analytic, load stellar data
@@ -142,7 +144,6 @@ module star
             end if
           end do
           close(99)
-          nlines = nlines -1
 
           !allocate the arrays
           allocate(tab_mencl(nlines))

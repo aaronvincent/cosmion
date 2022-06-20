@@ -4,7 +4,6 @@ implicit none
 
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time !the DM coordinates
 double precision, parameter :: GeV = 1.78266d-24
-logical isinside_flag
 
 character*100 :: outfile
 ! logical antemp, andens, anpot
@@ -19,14 +18,13 @@ call random_seed
 
 
 !masses in g
-mdm = 1*GeV
-sigsd = 1.d-34 !cm^2
+mdm = 10*GeV
+sigsd = 1.d-40 !cm^2
 anTemp = .false.
 anDens = .false.
 anPot = .true.
-isinside_flag = .true.
 
-Nsteps =1e3
+Nsteps =1e4
 
 outfile = 'positions.dat'
 
@@ -38,30 +36,41 @@ open(94,file = outfile)
 ! call spawn(x,y,z,vx,vy,vz)
 call spawn(xi,vi)
 print*,xi, vi
+vout = vi
+time = 0.d0
+write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time,outside_flag
 
 ! big loop
 call timestamp
 do i = 1,Nsteps
-call propagate(xi,vi,x,v,time)
+    call propagate(xi,vi,x,v,time)
 
-!this check doesn't actually work, since the RKF solver will keep trying to integrate past rsun
-!it dies without closing the file, I think we lose everything
-call isinside(x,isinside_flag)
-if (isinside_flag .eqv. .false.) then
-print*, "Elvis has left the building"
-return
-end if
-call collide(x,v,vout)
-! print*, "vin ", v, "vout ", vout
-write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time
-xi = x
-vi = vout
+    if (outside_flag == 0) then
+        call collide(x,v,vout)
+        xi = x
+        vi = vout
+    else if (outside_flag == 1) then
+        vout = v
+        xi = x
+        vi = v
+        outside_flag = 0
+        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag
+        call keplerian(xi,vi,x,v,time)
+        !call keplerian_rad(xi,vi,x,v,time)
+        outside_flag = 1
+        vout = v
+        xi = x
+        vi = v
+    else if (outside_flag == 2) then
+        call spawn(x,v)
+        vout = v
+        time = 0.d0
+        xi = x
+        vi = v
+    end if
+    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag
+    outside_flag = 0
 
-
-
-
-
-! print*,x,v
 end do
 close(94)
 print*,"Simulation complete"
