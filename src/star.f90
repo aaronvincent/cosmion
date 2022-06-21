@@ -8,7 +8,7 @@ module star
 
 ! Units: length = cm, time = s,energy = erg, mass = g
 ! Turns on analytic treatment of the temperature, density, potential
-  logical :: anTemp, anDens, anPot, SHO_debug
+  logical :: anTemp, anDens, anPot,fullHistory, SHO_debug
   integer nlines
   double precision, allocatable :: tab_mencl(:), tab_starrho(:), tab_mfr(:,:), tab_r(:), tab_vesc(:), tab_dr(:)
   double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:),tab_phi(:)

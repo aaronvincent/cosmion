@@ -1,7 +1,7 @@
 %units CGS everywhere
 defineColors;
-load positions_SHO.dat
-positions = positions_SHO;
+load positions.dat
+% positions = positions_SHO;
 % load positions_SHO_m10_s40.mat
 %% 
 GeV = 1.78e-24;
@@ -10,7 +10,7 @@ m = mx*GeV;
 Rsun = 69.57d9;
 Msun = 1.989e33; %g
 nxinSun = 1e-15*Msun/(0.938*GeV);
-sigma = 1e-34;
+sigma = 1e-36;
 kB = 1.38e-16;
 r = sqrt(sum(positions(:,1:3).^2,2));
 v = sqrt(sum(positions(:,4:6).^2,2));
@@ -64,6 +64,15 @@ hold on
 plot(R,-LPS*kfac,'linewidth',2)
 
 set(gca,'xlim',[0, 0.2])
+
+%% Positions
+figure
+histogram(r,[0:.001:.2]*Rsun,'normalization','pdf')
+hold on
+% rnum = sqrt(sum(positions(:,1:3).^2,2));
+% histogram(rnum,[0:.001:.2]*Rsun,'normalization','pdf')
+xlabel('$r$','fontsize',16,'interpreter','latex')
+plot(R*Rsun,R.^2*Rsun.^2.*nxIso./trapz(R*Rsun,R.^2*Rsun.^2.*nxIso),'linewidth',2)
 
 % plot(bins,Tav)
 

@@ -87,6 +87,9 @@ relerr = 1.d-4
 abserr = 1.d-7
 flag = 1
 counter = 0
+!used for tracking position in integrator
+tvec(:) = tvec(:)*0.d0
+yarrout(:,:)= yarrout(:,:)*0.d0
 
 !optical depth that we travel before collision
 !1) draw an optical depth
@@ -206,30 +209,31 @@ else !numerically integrate potential
   ! print*,"callking rkf, eoverm = ", eoverm
 
 intcounter = 0
-
+if (fullHistory) then
   ! call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
   call rkf45fullhistory (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag,tvec,yarrout )
 !arguments from the original function ( f, neqn, y, yp, t, tout, relerr, abserr, flag )
 ! print*,"called"
 tout = yarr(1) !time
-print*,"tvec at 2", yarrout(1:5,:)
+print*,"tvec: ", tvec(1:10)
+print*,"yarr: ", yarrout(1:5,:)
 
 !write all computed trajectory positions. first column is tau, then time, r, vr
-open(99,file='rep_pos.dat',access='append')
-fcounter = 0
-do while (tvec(fcounter+1) .ne. 0.d0)
-  fcounter = fcounter+1
-write(99,*) tvec(fcounter), yarrout(fcounter,1),yarrout(fcounter,2),yarrout(fcounter,3)
-end do
-close(99)
-tvec = tvec*0.d0
+! open(99,file='rep_pos.dat',access='append')
+! fcounter = 0
+! do while (tvec(fcounter+1) .ne. 0.d0)
+!   fcounter = fcounter+1
+! write(99,*) tvec(fcounter), yarrout(fcounter,1),yarrout(fcounter,2),yarrout(fcounter,3)
+! end do
+! close(99)
+! tvec = tvec*0.d0
 
 ! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
 !If the integrator reaches a max number of steps it aborts with flag 4
 do while (flag .eq. 4)
   intcounter = intcounter + 1
 ! call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
-call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag,tvec,yarrout )
+call rkf45fullhistory (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag,tvec,yarrout )
 tout = yarr(1)
 
 !!!!write trajectory positions again
@@ -246,6 +250,21 @@ if (intcounter .eq. 1000) then
 end if
 ! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
 end do
+
+else !not full history
+  call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+  tout = yarr(1)
+  do while (flag .eq. 4)
+    intcounter = intcounter + 1
+  ! call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+  call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+  tout = yarr(1)
+  if (intcounter .eq. 1000) then
+    print*,"You might be stuck in an infinite loop?"
+  end if
+  ! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
+  end do
+end if !fullhistory
 !because we're not tracking angles here, we will just reset the particle position
 !at x = r, other coordinates zero.
 !We assign radial and tangential velocity in the xy plane, with vz = 0

@@ -14,8 +14,8 @@ integer Nsteps, i,ratio
 
 
 
-outfile = 'positions_SHO.dat'
-reprofile = 'rep_pos.dat'
+outfile = 'positions.dat'
+reprofile = 'rep_pos.dat' !only used if fullHistory = true
 
 !set parameters
 
@@ -25,11 +25,21 @@ call random_seed
 
 
 !masses in g
-mdm = 5*GeV
+mdm = 10.d0*GeV
 sigsd = 1.d-36 !cm^2
+Nsteps =1d6
+
+
+!anXXX flags: if false, interpolate from a stellar model. If true, use analytic
+!functions defined in star.f90
+!For testing only.
 anTemp = .false.
 anDens = .false.
-anPot = .false. !treat potential as SHO and use analytic trajectory expressions for x, v
+!treat potential as SHO and use analytic trajectory expressions for x, v
+anPot = .false.
+!turn this on if you want the full trajectory history, not just timestamps at every collision
+!Note this will take a ludicrous amount of HD space.
+fullHistory = .false.
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
@@ -43,7 +53,7 @@ end if
 
 isinside_flag = .true.
 
-Nsteps =2
+
 
 allocate(times(Nsteps))
 
