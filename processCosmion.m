@@ -10,7 +10,7 @@ m = mx*GeV;
 Rsun = 69.57d9;
 Msun = 1.989e33; %g
 nxinSun = 1e-15*Msun/(0.938*GeV);
-sigma = 1e-36;
+sigma = 1e-37;
 kB = 1.38e-16;
 r = sqrt(sum(positions(:,1:3).^2,2));
 v = sqrt(sum(positions(:,4:6).^2,2));
@@ -48,16 +48,16 @@ stdLL = stdLL/sum(t);
 [R, Etrans,Q, K, nx, sigsOut,nxIso,nxLTE, Ltrans,LPS,LLTE,Rchi] = luminosity_constrho_slim(sigma,mx ,0, 0,220e5,1e-15,1);
 kfac = 0.5/(1+(0.31/K)^2)
 % % plot(bins,L,'linestyle','none')
-errorbar(bins/Rsun,nxinSun*L,nxinSun*stdL,'linestyle','none','markersize',10,'marker','.')
-hold on
-plot(R(1:end-1),diff(LPS)./diff(R)/Rsun*kfac,'linewidth',2,'color',royalBlue,'linestyle','-');
+% errorbar(bins/Rsun,nxinSun*L,nxinSun*stdL,'linestyle','none','markersize',10,'marker','.')
+% hold on
+% plot(R(1:end-1),diff(LPS)./diff(R)/Rsun*kfac,'linewidth',2,'color',royalBlue,'linestyle','-');
 
 
-set(gca,'xlim',[0, 0.15])
+% set(gca,'xlim',[0, 0.15])
 figure
 plot(bins/Rsun,nxinSun*cumtrapz(L),'.','markersize',15)
 hold on
-errorbar(bins/Rsun,nxinSun*LL,nxinSun*stdLL,'.','markersize',15)
+errorbar(bins/Rsun,nxinSun*LL,nxinSun*stdLL*kfac,'.','markersize',15)
 hold on
 
 

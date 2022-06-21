@@ -5,7 +5,6 @@ implicit none
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time !the DM coordinates
 double precision, allocatable :: times(:) !makes reprocessing a bit easier to keep this in memory
 double precision, parameter :: GeV = 1.78266d-24
-logical isinside_flag
 
 character*100 :: outfile, reprofile
 ! logical antemp, andens, anpot
@@ -26,8 +25,8 @@ call random_seed
 
 !masses in g
 mdm = 10.d0*GeV
-sigsd = 1.d-36 !cm^2
-Nsteps =1d6
+sigsd = 1.d-37 !cm^2
+Nsteps =1d5
 
 
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
@@ -51,8 +50,6 @@ if (anPot .or. SHO_debug) then
 end if
 
 
-isinside_flag = .true.
-
 
 
 allocate(times(Nsteps))
@@ -75,28 +72,41 @@ call spawn(xi,vi)
 ! xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
 ! vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
 print*,xi, vi
+vout = vi
+time = 0.d0
+write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time,outside_flag
 
 ! big loop
 call timestamp
 do i = 1,Nsteps
-call propagate(xi,vi,x,v,time)
-! print*,"time: ", time, 'r: ', sqrt(sum(x**2))
-!this check doesn't actually work, since the RKF solver will keep trying to integrate past rsun
-!it dies without closing the file, I think we lose everything
-call isinside(x,isinside_flag)
-if (isinside_flag .eqv. .false.) then
-print*, "Elvis has left the building"
-return
-end if
-call collide(x,v,vout)
-! print*, "vin ", v, "vout ", vout
-r = sqrt(sum(x**2))
-write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3),time, potential(r)
-xi = x
-vi = vout
-times(i) = time
+    call propagate(xi,vi,x,v,time)
 
-! print*,x,v
+    if (outside_flag == 0) then
+        call collide(x,v,vout)
+        xi = x
+        vi = vout
+    else if (outside_flag == 1) then
+        vout = v
+        xi = x
+        vi = v
+        outside_flag = 0
+        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag
+        call keplerian(xi,vi,x,v,time)
+        !call keplerian_rad(xi,vi,x,v,time)
+        outside_flag = 1
+        vout = v
+        xi = x
+        vi = v
+    else if (outside_flag == 2) then
+        call spawn(x,v)
+        vout = v
+        time = 0.d0
+        xi = x
+        vi = v
+    end if
+    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag
+    outside_flag = 0
+
 end do
 close(94)
 print*,"Simulation complete"
