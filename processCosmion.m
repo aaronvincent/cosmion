@@ -55,8 +55,8 @@ kfac = 0.5/(1+(0.31/K)^2)
 
 % set(gca,'xlim',[0, 0.15])
 figure
-plot(bins/Rsun,nxinSun*cumtrapz(L),'.','markersize',15)
-hold on
+% plot(bins/Rsun,nxinSun*cumtrapz(L),'.','markersize',15)
+% hold on
 errorbar(bins/Rsun,nxinSun*LL,nxinSun*stdLL*kfac,'.','markersize',15)
 hold on
 

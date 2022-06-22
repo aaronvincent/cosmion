@@ -26,7 +26,7 @@ call random_seed
 !masses in g
 mdm = 10.d0*GeV
 sigsd = 1.d-37 !cm^2
-Nsteps =1d5
+Nsteps =1
 
 
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
@@ -57,7 +57,14 @@ allocate(times(Nsteps))
 
 call init_star(anTemp,anDens,anPot,mdm,sigSD)
 
-! print*,"potential at 0.5 ", potential(0.5d0)
+! open(94,file = "potential.dat")
+! do i = 1,100
+!   r = Rsun*dble(i-1)/100.
+!   write(94,*) r, potential(r)
+! end do
+! close(94)
+
+
 
 !wipe the trajectory history
 open(99,file=reprofile,status='replace')
@@ -71,6 +78,8 @@ call spawn(xi,vi)
 ! spawining at a specific place, for testing
 ! xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
 ! vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
+xi = (/5.4906921d10,       0.12d0 ,      -2.0402393d0 /)
+vi = (/2000.430080282d5,        2000.840957018765d5,       0.d0    /) 
 print*,xi, vi
 vout = vi
 time = 0.d0

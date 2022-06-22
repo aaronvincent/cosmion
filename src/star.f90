@@ -12,7 +12,7 @@ module star
   integer nlines
   double precision, allocatable :: tab_mencl(:), tab_starrho(:), tab_mfr(:,:), tab_r(:), tab_vesc(:), tab_dr(:)
   double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:),tab_phi(:)
-  double precision :: rhoSHO,rchi,Rsun,mdm,OmegaSHO,sigSD,mu
+  double precision :: rhoSHO,rchi,Rsun,Msun,mdm,OmegaSHO,sigSD,mu
   double precision, parameter :: c0=2.99792458d10,GN = 6.672d-8,pi=3.141592653, mnuc = 0.938,mnucg = 1.66054d-24
   double precision, parameter :: hbarc = 1.97d-14,kb = 1.3807d-16
   !this goes with the Serenelli table format
@@ -111,20 +111,43 @@ module star
     temperature =  T
   end function
 
-!get potential at radius r
+!get potential at radius r. Only valid inside star
   function potential(R)
     double precision, intent(in):: R
     double precision :: phi, potential
     if (anPot .or. SHO_debug) then
-      phi = 2.*pi*GN*rhoSHO*R**2/3.
+      !making potential negative-definite. This avoid *isssues*
+      if (R .gt. Rsun) then
+        phi = -4.*pi*GN*rhoSHO*Rsun**3/R
+      else
+      phi = 2.*pi*GN*rhoSHO*(R**2-2.*Rsun**2)/3. !- 4.*pi/3.*rhoSHO*Rsun**2*GN
+    end if
     else
       if (R/Rsun < tab_r(1)) then
         phi = tab_phi(1)
+      else if (R .ge. Rsun ) then
+        phi = -GN*Msun/R
       else
         call interp1(tab_r,tab_phi,Nlines,R/Rsun,phi)
       end if
     end if
     potential =  phi
+  end function
+
+  function vescape(R)
+    double precision, intent(in):: R
+    double precision ::  vescape
+    if (anPot .or. SHO_debug) then
+      ! phi = 2.*pi*GN*rhoSHO*R**2/3.
+      vescape = sqrt(-2*potential(R))
+    else
+      if (R/Rsun < tab_r(1)) then
+        vescape = tab_vesc(1)
+      else
+        call interp1(tab_r,tab_vesc,Nlines,R/Rsun,vescape)
+      end if
+    end if
+
   end function
 
 ! get acceleration at R
@@ -153,6 +176,7 @@ module star
           integer :: i,j, nlines,iostatus
 
           Rsun = 69.57d9 !this is set here, for other stars, this sub is not called
+          Msun = 1.989d33
           GMoverR=1.908e15
           !Get number of lines in the file
           open(99,file=filename)
