@@ -74,11 +74,15 @@ interface
     double precision, intent(in) :: t,y
     double precision, intent(out) :: yp
   end subroutine
+  subroutine pets_to_surf2d(t,y,yp) !integrand for propagation to surface without collision
+    double precision, intent(in) :: t,y(3)
+    double precision, intent(out) :: yp(3)
+  end subroutine
 end interface
 
 double precision, intent(in) :: xin(3),vin(3)
 double precision, intent(out) :: xout(3),vout(3)
-double precision :: a, tau,r,vx
+double precision :: a, tau,r,vx,Rbar
 double precision :: T,n,mfp,tvec(3000),yarrout(3000,3),dt
 
 double precision :: phase_r,amplitude_r,cosine
@@ -93,7 +97,7 @@ integer :: intcounter
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-6
+relerr = 1.d-5
 abserr = 1.d-10
 flag = 1
 counter = 0
@@ -354,15 +358,41 @@ else !not full history
   print*,'eoverm ', eoverm, 'r = ', r, 'ell = ', ell, 'v = ', vx, 'vesc ', vescape(r), 'potential ', potential(r)
   time = 0.d0
   !integrate to just under Rsun, otherwise we get problems
-  call pets_to_surf(r,0.d0,yp)
+  ! call pets_to_surf(r,0.d0,yp)
   !1d integrator *should* work, but it goes berzerk. I don't get it
   ! call rkf45 (pets_to_surf,time, yp, r,Rsun*(1.-1.d-10), relerr, abserr, flag )
-  call rkf45full (pets_to_surf,time, yp, r,Rsun*(1.-1.d-10), relerr, abserr, flag )
+  yarr(1) = time
+  yarr(2) = sum(vin*xin)/r
+  yarr(3) = 0.d0 !along for the ride, does nothing
+  call pets_to_surf2d(r,yarr,yparr)
+ flag = 1
+  if (sum(vin*xin)/r .lt. 0.d0) then
+    !we need to integrate until vr changes sign, then integrate up to r
+    !vr = 0 when we hit the angular momentum barrier
+    !we could solve for r when rdot = 0 using conservation of energy
+    !but then we would still need to integrate an ODE to get that time
+    !so we may as well integrate the ode fully. Unfortunately that means
+    !defining *yet another* function with an interface
+    ! Rbar = sqrt(-ell**2/potential(r)/2.d0)
+    ! print*, "R: ", "rbar:", rbar
+    print*,'this is where the code breaks'
+    stop
+    call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rbar, relerr, abserr, flag )
+    print*,"R = ", r, "rbar =", Rbar, "ratio ",r/Rbar, "reversing course"
+    r = Rbar
+
+    !reverse course! Due to precision we will miss the turnaround...
+    yarr(2) = abs(yarr(2))
+    flag = 1
+  end if
+  call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rsun*(1.-1.d-10), relerr, abserr, flag )
   xout(1) = Rsun
   xout(2) = 0.d0
   xout(3) = 0.d0
-  print*,'result of rkf time,', time, 'r ', r, 'vesc at rsun ', vescape(Rsun),'flag = ',flag
-  vout(1) = sqrt(2.*eoverm - ell**2/Rsun**2 - 2.*potential(Rsun)) !get radial velocity from position and conservation of energy
+  print*,'result of rkf time,', yarr(1), 'r ', r, 'vesc at rsun ', vescape(Rsun),'flag = ',flag
+  ! vout(1) = sqrt(2.*eoverm - ell**2/Rsun**2 - 2.*potential(Rsun)) !get radial velocity from position and conservation of energy
+  time = yarr(1)
+  vout(1) = yarr(2)
   print*, "eoverm", eoverm, "phi", potential(Rsun),"ell ", ell
   ! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
   vout(2) = ell/dble(xout(1)) ! stick tangential velocity in the y direction
@@ -655,26 +685,26 @@ end subroutine pets_sph
   end subroutine pets_to_surf
 
 !the above subroutine should work, but the integrator goes berzerk
-  subroutine pets_to_surf2d(t,y,yprime)
+  subroutine pets_to_surf2d(r,y,yprime)
     use init_conds
     use star
     implicit none
-    double precision, intent(in) :: t,y(3)
+    double precision, intent(in) :: r,y(3)
     double precision, intent(out) ::  yprime(3)
-    double precision :: time, r, aux, aux2
+    double precision ::  aux, aux2
     ! double precision ::
     !only 2 elements of the y vector are used. 3rd is along for the ride
 
-    time = y(2)
-    ! Zero crossing
-    r = t
+    ! time = y(1)
+
     yprime(1) = 1./y(2) !dt/dr
     yprime(2) = 1./y(2)*(gofr(r) + ell**2/r**3) ! dv/dr = dt/dr dv/dt
     yprime(3) = 0.d0
+    ! print*, 'r = ', r, 'time = ', y(1),'vr = ', y(2),'gofr,', gofr(r)
     ! print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
-    ! open(92,file = "inching.dat",access='append')
-    ! write(92,*) r/rsun, aux, potential(r),1./yprime,ell, eoverm,time
-    ! close(92)
+    open(92,file = "inching.dat",access='append')
+    write(92,*) r, potential(r),y(1),y(2),ell, eoverm
+    close(92)
     ! print*, "r/rsun", aux2, 'aux ', aux
   end subroutine pets_to_surf2d
 
