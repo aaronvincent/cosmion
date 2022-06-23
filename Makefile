@@ -10,7 +10,7 @@ SRCDIR = ./src
 
 MAIN = cosmion.o
 MFSHR = init_conds.o star.o walk.o
-NUMFOBJ =  num.o  rkf45.o rkf45full.o rkf45fullhistory.o #rkf45full_n2.o
+NUMFOBJ =  num.o  rkf45.o rkf45full.o rkf45fullhistory.o newton.o #rkf45full_n2.o
 
 
 

@@ -26,7 +26,7 @@ call random_seed
 !masses in g
 mdm = 10.d0*GeV
 sigsd = 1.d-37 !cm^2
-Nsteps =1
+Nsteps =1e4
 
 
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
@@ -35,7 +35,7 @@ Nsteps =1
 anTemp = .false.
 anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
-anPot = .false.
+anPot = .true.
 !turn this on if you want the full trajectory history, not just timestamps at every collision
 !Note this will take a ludicrous amount of HD space.
 fullHistory = .false.
@@ -79,7 +79,7 @@ call spawn(xi,vi)
 ! xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
 ! vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
 xi = (/5.4906921d10,       0.12d0 ,      -2.0402393d0 /)
-vi = (/-3000.430080282d5,        -1000.840957018765d5,       0.d0    /) 
+vi = (/-5000.d5,        -1000.d5,       0.d0    /)
 print*,xi, vi
 vout = vi
 time = 0.d0
@@ -106,6 +106,7 @@ do i = 1,Nsteps
         vout = v
         xi = x
         vi = v
+        print*,"after keplerian, r = ", sqrt(sum(x))
     else if (outside_flag == 2) then
         call spawn(x,v)
         vout = v

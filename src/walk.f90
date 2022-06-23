@@ -78,12 +78,30 @@ interface
     double precision, intent(in) :: t,y(3)
     double precision, intent(out) :: yp(3)
   end subroutine
+  ! subroutine pets_to_turning(t,y,yp) !integrand for propagation to surface without collision
+  !   double precision, intent(in) :: t,y(3)
+  !   double precision, intent(out) :: yp(3)
+  ! end subroutine
+  function turnaroundEnergy(rin) result(eout)
+  ! used to find turnaround for inward-bound orbits
+    implicit none
+    double precision, intent(in) :: rin
+    double precision eout
+   end function
+
+  function turnaroundEnergyPrime(rin) result(eout)
+    ! used to find turnaround for inward-bound orbits
+    implicit none
+    double precision, intent(in) :: rin
+    double precision eout
+  end function
 end interface
 
 double precision, intent(in) :: xin(3),vin(3)
 double precision, intent(out) :: xout(3),vout(3)
-double precision :: a, tau,r,vx,Rbar
+double precision :: a, tau,r,vx
 double precision :: T,n,mfp,tvec(3000),yarrout(3000,3),dt
+
 
 double precision :: phase_r,amplitude_r,cosine
 ! double precision :: phase_i(3), amplitude_i(3) !initial conditions now in module
@@ -91,9 +109,9 @@ double precision :: phase_r,amplitude_r,cosine
 integer :: neqn, flag,counter,fcounter
 double precision :: y, yp, time, tout, relerr, abserr
 double precision :: yarr(3), yparr(3) !these are used in the numerical potential case
-double precision ::  vr, vtheta,taustart
+double precision ::  vr, vtheta,taustart,Rbar
 double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnitude
-integer :: intcounter
+integer :: intcounter,iters
 
 time = 0.d0
 tout = 0.d0
@@ -115,35 +133,9 @@ tau = -log(1.d0-a)
 ! 2) Integrate the time it takes to reach that optical depth
 
 
-!this is where we call RKF45, passin the step sub
-
-!Replaced the external block with an interface
-! Instead of integrating until we hit the right optical depth, we'll guess then adjust
-!a little janky
-! 1) Guess a time to get to tau. Hardcoded to H only
-
 r  = sqrt(sum(xin**2))
 vx = sqrt(sum(vin**2))
 
-! n = ndensity(R,1)
-!initial guess for how long we should go
-! mfp = 1./(n*sigSD*vx) !a mean free path in seconds
-! print*,"mean free path in cm ", mfp*vx, "and in s ", mfp
-! tout = tau*mfp
-! tout = tout/4. !this speeds things up
-!tout is no longer used
-!old iterative method:
-! do while ((abs(y-tau)/tau .gt. 1.d-6 ) .and. (counter .lt. 10000))
-! counter = counter + 1
-! time = 0.d0
-! flag = 1
-! y = 0.d0 !initial column density
-! call rkf45 (step, y, yp, time, tout, relerr, abserr, flag )
-! ! print*, "flag is", flag
-!  ! Newton's method to find the stopping point-- this does very well for constant density/small cross section,
-!  ! not well at all if n(r) varies a lot over the trajectory
-! ! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', tout
-! tout = tout - (y-tau)/yp
 !
 ! ! I'm gonna do what you might call a pro-gamer move
 ! !this integrates t until we reach optical depth tau
@@ -240,7 +232,7 @@ if (anPot) then
   end if
 
 else ! not anPot: numerically integrate potential
-  ! Here we start to cheat : we are integrating the EoM for R; thanks to spherical
+  ! Here we are integrating the EoM for R; thanks to spherical
   !symmetry and conservation of angular momentum, the other coordinates do not matter.
   ! So we'll track velocities before and after propagation,
   !but we won't actually move the angular position. In this way we only need to solve 3 equations of motion:
@@ -249,10 +241,10 @@ else ! not anPot: numerically integrate potential
 
 
 !angular momentum/m = R x V
-! TODO replace this with cross, since it is now defined
-  ellvec(3) = xin(1)*vin(2)-xin(2)*vin(1)
-  ellvec(2) = xin(3)*vin(1)-xin(1)*vin(3)
-  ellvec(1) = xin(2)*vin(3)-xin(3)*vin(2)
+call cross(xin,vin,ellvec)
+  ! ellvec(3) = xin(1)*vin(2)-xin(2)*vin(1)
+  ! ellvec(2) = xin(3)*vin(1)-xin(1)*vin(3)
+  ! ellvec(1) = xin(2)*vin(3)-xin(3)*vin(2)
 
   taustart = 0.d0
 !magnitude of angular momentum.
@@ -265,15 +257,13 @@ else ! not anPot: numerically integrate potential
 
   r  = sqrt(sum(xin**2))
   vx = sqrt(sum(vin**2))
-  yarr(3) = sum(vin*xin)/r !velocity in R direction
+  vr = sum(vin*xin)/r
+  yarr(3) = vr !velocity in R direction
 
 
   !energy over m is conserved
-  !This is stored in initial conditions module since it is required in the eom
-  ! eoverm = .5*vx**2 + .5*ell**2/r**2 + potential(r)
-  eoverm = .5*vx**2  + potential(r) !can be used to track error, used when exiting star
-! print*, "E before propagation: ", eoverm
-  ! print*,"callking rkf, eoverm = ", eoverm
+  !This is stored in initial conditions module since it can be required in the eom
+   eoverm = .5*vx**2  + potential(r)
 
 intcounter = 0
 if (fullHistory) then
@@ -321,8 +311,10 @@ if (fullHistory) then
 ! end do
 
 else !not full history
-  !get initial derivatives
+
+!!! Main propagation
   call pets_sph(taustart,yarr,yparr)
+  print*,"flag before rkf", flag
   call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
   tout = yarr(1)
   do while (flag .eq. 4)
@@ -332,20 +324,13 @@ else !not full history
   tout = yarr(1)
   if (intcounter .eq. 1000) then
     print*,"You might be stuck in an infinite loop?"
+    print*, "at time ", tout, 'tau', taustart,'going to ',tau,'yarr', yarr
     ! print*, yarr
   end if
   ! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
   end do
-  ! xout(1) = yarr(2)
-  ! xout(2) = 0.d0
-  ! xout(3) = 0.d0
-  !
-  ! vout(1) = yarr(3) !sqrt(2.*eoverm - ell**2/xout(1)**2 - 2.*potential(r)) !get radial velocity from position and conservation of energy
-  ! ! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
-  ! vout(2) = ell/xout(1) ! stick tangential velocity in the y direction
-  ! vout(3) = 0.d0
+!!! Main propagation done
 
-  ! vtot= sqrt(sum(vout**2))
   !if at any point the integrator realized it had left the star, we ditch any
   !work it did and figure out the keplerian bit
   if (outside_flag .ne. 0 .or. r>Rsun) then
@@ -355,50 +340,57 @@ else !not full history
     print*, "Escaped"
     return
   end if !escape
-  print*,'eoverm ', eoverm, 'r = ', r, 'ell = ', ell, 'v = ', vx, 'vesc ', vescape(r), 'potential ', potential(r)
+  ! print*,'eoverm ', eoverm, 'r = ', r, 'ell = ', ell, 'v = ', vx, 'vesc ', vescape(r), 'potential ', potential(r)
   time = 0.d0
   !integrate to just under Rsun, otherwise we get problems
   ! call pets_to_surf(r,0.d0,yp)
   !1d integrator *should* work, but it goes berzerk. I don't get it
   ! call rkf45 (pets_to_surf,time, yp, r,Rsun*(1.-1.d-10), relerr, abserr, flag )
-  yarr(1) = time
-  yarr(2) = sum(vin*xin)/r
-  yarr(3) = 0.d0 !along for the ride, does nothing
-  call pets_to_surf2d(r,yarr,yparr)
- flag = 1
+  vr = sum(vin*xin)/r
+
+  ! call pets_to_surf2d(r,yarr,yparr)
+ flag = 1 !reset integrator flag
   if (sum(vin*xin)/r .lt. 0.d0) then
     !we need to integrate until vr changes sign, then integrate up to r
     !vr = 0 when we hit the angular momentum barrier
-    !we could solve for r when rdot = 0 using conservation of energy
-    !but then we would still need to integrate an ODE to get that time
-    !so we may as well integrate the ode fully. Unfortunately that means
-    !defining *yet another* function with an interface
-    ! Rbar = sqrt(-ell**2/potential(r)/2.d0)
-    ! print*, "R: ", "rbar:", rbar
-    print*,'this is where the code breaks'
-    stop
+    !solve for rdot = 0 using energy conservation
+    yarr(1) = time
+    yarr(2) = vr
+    yarr(3) = 0.d0 !along for the ride, does nothing
+    call newton(turnaroundEnergy, turnaroundEnergyPrime, r/10., Rbar, iters, .false.)
+    ! print*,'Found reversal rbar = ',Rbar
+    ! integrate vr from vr to zero
     call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rbar, relerr, abserr, flag )
-    print*,"R = ", r, "rbar =", Rbar, "ratio ",r/Rbar, "reversing course"
-    r = Rbar
+    time = yarr(1)
+    vr = yarr(2)
+    ! print*,"time to rbar = ", time, " reached with velocity ",vr
 
-    !reverse course! Due to precision we will miss the turnaround...
-    yarr(2) = abs(yarr(2))
+    ! vr = 1.d-10! start it off positive
+    !reverse course!
+    ! yarr(2) = abs(yarr(2))
     flag = 1
+    ! stop
   end if
-  call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rsun*(1.-1.d-10), relerr, abserr, flag )
+
+  yarr(1) = time
+  yarr(2) = dabs(vr)
+  yarr(3) = 0.d0 !along for the ride, does nothing
+  call pets_to_surf2d(Rbar,yarr,yparr)
+  ! print*,"intergrating from ", Rbar, " to ", Rsun, "yarr ", yarr
+  call rkf45full (pets_to_surf2d,3,yarr, yparr, Rbar,Rsun, relerr, abserr, flag )
   xout(1) = Rsun
   xout(2) = 0.d0
   xout(3) = 0.d0
-  print*,'result of rkf time,', yarr(1), 'r ', r, 'vesc at rsun ', vescape(Rsun),'flag = ',flag
+  ! print*,'result of rkf time,', yarr(1), 'r ', r, 'vesc at rsun ', vescape(Rsun),'flag = ',flag
   ! vout(1) = sqrt(2.*eoverm - ell**2/Rsun**2 - 2.*potential(Rsun)) !get radial velocity from position and conservation of energy
   time = yarr(1)
   vout(1) = yarr(2)
-  print*, "eoverm", eoverm, "phi", potential(Rsun),"ell ", ell
+  ! print*, "eoverm", eoverm, "phi", potential(Rsun),"ell ", ell
   ! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
   vout(2) = ell/dble(xout(1)) ! stick tangential velocity in the y direction
   vout(3) = 0.d0
 
-  print*,'vr is now ', dble(vout(1)), 'Vtheta is ', vout(2)
+  ! print*,'vr is now ', dble(vout(1)), 'Vtheta is ', vout(2)
 
 else !outside flag
   xout(1) = dble(yarr(2))
@@ -668,47 +660,67 @@ end subroutine pets_sph
     implicit none
     double precision, intent(in) :: t,y
     double precision, intent(out) ::  yprime
-    double precision :: time, r, aux, aux2
+    double precision :: time, r
     ! double precision ::
 
     time = y
     ! Zero crossing
     r = t
     yprime = 1./sqrt(abs(2.*eoverm-ell**2/r**2-2.*potential(r)))
-    aux = 2.*eoverm-(ell/r)**2-2.*potential(r)
-    aux2 = r/Rsun
-    print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
-    open(92,file = "inching.dat",access='append')
-    write(92,*) r/rsun, aux, potential(r),1./yprime,ell, eoverm,time
-    close(92)
+
+    ! print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
+    ! open(92,file = "inching.dat",access='append')
+    ! write(92,*) r/rsun, aux, potential(r),1./yprime,ell, eoverm,time
+    ! close(92)
     ! print*, "r/rsun", aux2, 'aux ', aux
   end subroutine pets_to_surf
 
-!the above subroutine should work, but the integrator goes berzerk
+!the above subroutine should work, but the integrator goes berzerk when it takes backwards steps
   subroutine pets_to_surf2d(r,y,yprime)
     use init_conds
     use star
     implicit none
     double precision, intent(in) :: r,y(3)
     double precision, intent(out) ::  yprime(3)
-    double precision ::  aux, aux2
+    ! double precision ::  aux, aux2
     ! double precision ::
     !only 2 elements of the y vector are used. 3rd is along for the ride
-
-    ! time = y(1)
-
+    !y(1) is time, y(2) is v
     yprime(1) = 1./y(2) !dt/dr
     yprime(2) = 1./y(2)*(gofr(r) + ell**2/r**3) ! dv/dr = dt/dr dv/dt
     yprime(3) = 0.d0
     ! print*, 'r = ', r, 'time = ', y(1),'vr = ', y(2),'gofr,', gofr(r)
-    ! print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
-    open(92,file = "inching.dat",access='append')
-    write(92,*) r, potential(r),y(1),y(2),ell, eoverm
-    close(92)
+    ! ! print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
+    ! open(92,file = "inching.dat",access='append')
+    ! write(92,*) r, potential(r),y(1),y(2),ell, eoverm
+    ! close(92)
     ! print*, "r/rsun", aux2, 'aux ', aux
   end subroutine pets_to_surf2d
 
-
+!This subroutine takes the radial velocity v as the independent variable, and integrates r and t
+!to find the turning point. This is to track particles with v_tot > vesc, but are on an inward trajectory
+! !this is stupid and doesn't work (v not monotonic) stage for deletion
+!   subroutine pets_to_turning(v,y,yprime)
+!     use init_conds
+!     use star
+!     implicit none
+!     double precision, intent(in) :: v,y(3)
+!     double precision, intent(out) ::  yprime(3)
+!     double precision ::  aux, aux2, r
+!     ! double precision ::
+!     !only 2 elements of the y vector are used. 3rd is along for the ride
+!     ! time = y(1)
+!     r = y(2)
+!     yprime(1) = 1.d0/(gofr(r) + ell**2/r**3) !dt/dv
+!     yprime(2) = v/(gofr(r) + ell**2/r**3) ! dr/dv = dr/dt dt/dv. Minus sign necessary here
+!     yprime(3) = 0.d0
+!     print*, 'r = ', r, 'vr = ', v,'a = ', (gofr(r) + ell**2/r**3), "time", y(1)
+!     ! print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
+!     open(92,file = "inching.dat",access='append')
+!     write(92,*) r, potential(r),y(1),v,ell, eoverm,gofr(r)
+!     close(92)
+!     ! print*, "r/rsun", aux2, 'aux ', aux
+!   end subroutine pets_to_turning
 
 !This integrand is used for reprocessing. It integrates
 !orbits in time (not optical depth)
@@ -962,6 +974,30 @@ subroutine keplerian_rad(xin,vin,xout,vout,tout)
   ! end if
 end subroutine
 
+function turnaroundEnergy(rin) result(eout)
+
+  ! used to find turnaround for inward-bound orbits
+  use star
+  use init_conds
+  implicit none
+  double precision, intent(in) :: rin
+  double precision eout,r
+  r = dabs(rin) !avoid funny business
+  eout = 2.d0*eoverm - ell**2/r**2 - 2.d0*potential(r)
+end function
+
+function turnaroundEnergyPrime(rin) result(eout)
+
+  ! used to find turnaround for inward-bound orbits
+  use star
+  use init_conds
+  implicit none
+  double precision, intent(in) :: rin
+  double precision eout
+  double precision r
+  r = dabs(rin)
+  eout = 2.d0*ell**2/r**3 +2.d0*gofr(r)
+end function
 ! function spawnCDF(r,r0)
 !   double precision :: r,r0, CDF,N
 !   N = sqrt(pi)*r0**3/4.

@@ -48,7 +48,7 @@ module star
                           39.948, 39.098, 40.08, 44.95, 47.86, 50.94, 51.99, &
                           54.93, 55.845, 58.933, 58.693/)
       end if
-      print*,"if statement"
+
     if (anPot .or. SHO_debug) then
       rhoSHO = 148.9d0 !g/cm^3
       rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*rhoSHO*mdm))
@@ -117,13 +117,13 @@ module star
     double precision :: phi, potential
     if (anPot .or. SHO_debug) then
       !making potential negative-definite. This avoid *isssues*
-      if (R .gt. Rsun) then
+      if (R .ge. Rsun) then
         phi = -4.*pi*GN*rhoSHO*Rsun**3/R
       else
       phi = 2.*pi*GN*rhoSHO*(R**2-2.*Rsun**2)/3. !- 4.*pi/3.*rhoSHO*Rsun**2*GN
     end if
     else
-      if (R/Rsun < tab_r(1)) then
+      if (R/Rsun .lt. tab_r(1)) then
         phi = tab_phi(1)
       else if (R .ge. Rsun ) then
         phi = -GN*Msun/R
@@ -141,8 +141,10 @@ module star
       ! phi = 2.*pi*GN*rhoSHO*R**2/3.
       vescape = sqrt(-2*potential(R))
     else
-      if (R/Rsun < tab_r(1)) then
+      if (R/Rsun .le. tab_r(1)) then
         vescape = tab_vesc(1)
+      else if (R .ge. Rsun ) then
+        vescape = sqrt(2*GN*Msun/R)
       else
         call interp1(tab_r,tab_vesc,Nlines,R/Rsun,vescape)
       end if
@@ -159,6 +161,8 @@ module star
     else
       if (R/Rsun < tab_r(1)) then
         gofr = tab_g(1)
+      else if (R .ge. Rsun) then
+        gofr = -GN*Msun/R**2
       else
         call interp1(tab_r,tab_g,Nlines,R/Rsun,gofr)
       end if
