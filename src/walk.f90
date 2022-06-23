@@ -175,9 +175,9 @@ if (anPot) then
   xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
   xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
 
-  vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
-  vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
-  vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
+  ! vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
+  ! vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
+  ! vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
   ! print*,'xout ', xout
 
 
@@ -230,7 +230,14 @@ if (anPot) then
     end if
     tout = (cosine-phase_r)/(2.*OmegaSHO)
   end if
+  xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
+  xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
+  xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
 
+  vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
+  vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
+  vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
+  
 else ! not anPot: numerically integrate potential
   ! Here we are integrating the EoM for R; thanks to spherical
   !symmetry and conservation of angular momentum, the other coordinates do not matter.

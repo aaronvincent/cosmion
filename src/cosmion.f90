@@ -26,8 +26,7 @@ call random_seed
 !masses in g
 mdm = 10.d0*GeV
 sigsd = 1.d-37 !cm^2
-Nsteps =1e4
-
+Nsteps =1e3
 
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
 !functions defined in star.f90
@@ -99,14 +98,16 @@ do i = 1,Nsteps
         xi = x
         vi = v
         outside_flag = 0
+        print*,"r before keplerian ",sqrt(sum(x**2))
         write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag
         call keplerian(xi,vi,x,v,time)
+        print*,"r after keplerian ",sqrt(sum(x**2))
         !call keplerian_rad(xi,vi,x,v,time)
         outside_flag = 1
         vout = v
         xi = x
         vi = v
-        print*,"after keplerian, r = ", sqrt(sum(x))
+
     else if (outside_flag == 2) then
         call spawn(x,v)
         vout = v
