@@ -237,7 +237,7 @@ if (anPot) then
   vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
   vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
   vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
-  
+
 else ! not anPot: numerically integrate potential
   ! Here we are integrating the EoM for R; thanks to spherical
   !symmetry and conservation of angular momentum, the other coordinates do not matter.
@@ -321,7 +321,7 @@ else !not full history
 
 !!! Main propagation
   call pets_sph(taustart,yarr,yparr)
-  print*,"flag before rkf", flag
+  ! print*,"flag before rkf", flag
   call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
   tout = yarr(1)
   do while (flag .eq. 4)
@@ -365,6 +365,10 @@ else !not full history
     yarr(2) = vr
     yarr(3) = 0.d0 !along for the ride, does nothing
     call newton(turnaroundEnergy, turnaroundEnergyPrime, r/10., Rbar, iters, .false.)
+    if (rbar .gt. Rsun) then
+      print*, "Major problem, particle turnaround point is outside the star"
+      stop
+    end if
     ! print*,'Found reversal rbar = ',Rbar
     ! integrate vr from vr to zero
     call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rbar, relerr, abserr, flag )
@@ -384,8 +388,9 @@ else !not full history
   yarr(3) = 0.d0 !along for the ride, does nothing
   call pets_to_surf2d(Rbar,yarr,yparr)
   ! print*,"intergrating from ", Rbar, " to ", Rsun, "yarr ", yarr
-  call rkf45full (pets_to_surf2d,3,yarr, yparr, Rbar,Rsun, relerr, abserr, flag )
-  xout(1) = Rsun
+  !place it just
+  call rkf45full (pets_to_surf2d,3,yarr, yparr, Rbar,Rsun*(1.-1.d-4), relerr, abserr, flag )
+  xout(1) = Rsun*(1.-1.d-4)
   xout(2) = 0.d0
   xout(3) = 0.d0
   ! print*,'result of rkf time,', yarr(1), 'r ', r, 'vesc at rsun ', vescape(Rsun),'flag = ',flag
