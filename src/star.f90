@@ -8,7 +8,7 @@ module star
 
 ! Units: length = cm, time = s,energy = erg, mass = g
 ! Turns on analytic treatment of the temperature, density, potential
-  logical :: anTemp, anDens, anPot
+  logical :: anTemp, anDens, anPot, spinDep
   integer nlines
   double precision, allocatable :: tab_mencl(:), tab_starrho(:), tab_mfr(:,:), tab_r(:), tab_vesc(:), tab_dr(:)
   double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:),tab_phi(:)
@@ -17,7 +17,7 @@ module star
   double precision, parameter :: hbarc = 1.97d-14,kb = 1.3807d-16
   !this goes with the Serenelli table format
   double precision :: AtomicNumber(29) !29 is is the number from the Serenelli files; if you have fewer it shouldn't matter
-  integer :: outside_flag
+  integer :: outside_flag, species
 
 !functions
   ! double precision :: ndensity, temperature, potential
@@ -144,7 +144,6 @@ module star
             end if
           end do
           close(99)
-          nlines = nlines -1
 
           !allocate the arrays
           allocate(tab_mencl(nlines))

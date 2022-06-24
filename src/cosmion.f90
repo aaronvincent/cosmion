@@ -23,6 +23,7 @@ sigsd = 1.d-40 !cm^2
 anTemp = .false.
 anDens = .false.
 anPot = .true.
+spinDep = .false.
 
 Nsteps =1e4
 
@@ -38,7 +39,8 @@ call spawn(xi,vi)
 print*,xi, vi
 vout = vi
 time = 0.d0
-write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time,outside_flag
+species = 0
+write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time,outside_flag,species
 
 ! big loop
 call timestamp
@@ -49,20 +51,28 @@ do i = 1,Nsteps
         call collide(x,v,vout)
         xi = x
         vi = vout
-    else
+    else if (outside_flag == 1) then
         vout = v
         xi = x
         vi = v
         outside_flag = 0
-        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag
+        species = 0
+        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag,species
         call keplerian(xi,vi,x,v,time)
         !call keplerian_rad(xi,vi,x,v,time)
         outside_flag = 1
         vout = v
         xi = x
         vi = v
+    else if (outside_flag == 2) then
+        call spawn(x,v)
+        vout = v
+        time = 0.d0
+        species = 0
+        xi = x
+        vi = v
     end if
-    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag
+    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag,species
     outside_flag = 0
 
 end do
