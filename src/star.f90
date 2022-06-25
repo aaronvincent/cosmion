@@ -12,7 +12,7 @@ module star
   integer nlines
   double precision, allocatable :: tab_mencl(:), tab_starrho(:), tab_mfr(:,:), tab_r(:), tab_vesc(:), tab_dr(:)
   double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:),tab_phi(:)
-  double precision :: rhoSHO,rchi,Rsun,mdm,OmegaSHO,sigSD,mu
+  double precision :: rhoSHO,rchi,Rsun,Msun,mdm,OmegaSHO,sigSD,mu
   double precision, parameter :: c0=2.99792458d10,GN = 6.672d-8,pi=3.141592653, mnuc = 0.938,mnucg = 1.66054d-24
   double precision, parameter :: hbarc = 1.97d-14,kb = 1.3807d-16
   !this goes with the Serenelli table format
@@ -131,6 +131,7 @@ module star
           integer :: i,j, nlines,iostatus
 
           Rsun = 69.57d9 !this is set here, for other stars, this sub is not called
+          Msun = 1.989d33
           GMoverR=1.908e15
           !Get number of lines in the file
           open(99,file=filename)

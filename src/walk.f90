@@ -444,18 +444,19 @@ subroutine keplerian(xin,vin,xout,vout,tout)
   end interface
   double precision, intent(in) :: xin(3),vin(3)
   double precision, intent(out) :: xout(3),vout(3),tout
-  double precision :: r,vr,vtot,vesc
-  double precision :: h(3),vh(3),smaj,e,theta,norm(3),plvec(3),ang
+  double precision :: r,vr,vtot,vesc,Mstar
+  double precision :: h(3),smaj,e,theta,norm(3),plvec(3),ang
   double precision :: area,areatot,period,c
   ! These are for Hannah's method
   !double precision :: e1(3),e2(3),bigtheta,anomaly,timediff,vt,theta0,newh,newe,M
 
   ! Here we must include code for the Keplerian orbit of the particle.
   ! Using the initial position and velocity, we find the re-entry parameters.
+  Mstar = 4./3.*pi*Rsun**3*rhoSHO
   r = sqrt(sum(xin**2))
   vr = sum(xin*vin) / r
   vtot = sqrt(sum(vin**2))
-  vesc = 2.*Rsun*sqrt(2.*pi*GN*rhoSHO/3.)
+  vesc = sqrt(2.*GN*Mstar/Rsun)
   ! Check if the particle exceeds the escape velocity.
   if (vtot >= vesc) then
     print*,"The particle has escaped!"
@@ -467,9 +468,9 @@ subroutine keplerian(xin,vin,xout,vout,tout)
   else
     !print*,"It's coming back"
     ! Do Keplerian stuff
-    smaj = 4.*pi*GN*Rsun**3*rhoSHO*r / (8.*pi*GN*Rsun**3*rhoSHO-3.*vtot**2*r)
+    smaj = GN*Mstar*r / (2.*GN*Mstar-vtot**2*r)
     call cross(xin,vin,h)
-    e = sqrt(1.-sum(h**2)/(smaj*4.*pi*GN*Rsun**3*rhoSHO/3.))
+    e = sqrt(1.-sum(h**2)/(smaj*GN*Mstar))
     theta = acos((smaj-e**2*smaj-r)/(e*r))
     call cross(xin,vin,norm)
     norm = norm/sqrt(sum(norm**2))
@@ -483,7 +484,7 @@ subroutine keplerian(xin,vin,xout,vout,tout)
       vout = cos(ang)*xout+sin(ang)*plvec
     end if
     vout = (vout/r)*vtot
-    period = sqrt(3.*pi*smaj**3/(GN*Rsun**3*rhoSHO))
+    period = sqrt(4.*pi**2*smaj**3/(GN*Mstar))
     areatot = pi*smaj**2*sqrt(1-e**2)
     c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
     area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
@@ -546,15 +547,16 @@ subroutine keplerian_rad(xin,vin,xout,vout,tout)
   end interface
   double precision, intent(in) :: xin(3),vin(3)
   double precision, intent(out) :: xout(3),vout(3),tout
-  double precision :: r,vtot,vesc,vr(3)
-  double precision :: h(3),vh(3),smaj,e,theta,norm(3),plvec(3),ang
+  double precision :: r,vtot,vesc,vr(3),Mstar
+  double precision :: h(3),smaj,e,theta
   double precision :: area,areatot,period,c
   ! Here we must include code for the Keplerian orbit of the particle.
   ! Using the initial position and velocity, we find the re-entry parameters.
   ! In this version, the particle re-enters at the same position.
+  Mstar = 4./3.*pi*Rsun**3*rhoSHO
   r = sqrt(sum(xin**2))
   vtot = sqrt(sum(vin**2))
-  vesc = 2.*Rsun*sqrt(2.*pi*GN*rhoSHO/3.)
+  vesc = sqrt(2.*GN*Mstar/Rsun)
   ! Check if the particle exceeds the escape velocity
   if (vtot >= vesc) then
     print*,"The particle has escaped!"
@@ -566,15 +568,20 @@ subroutine keplerian_rad(xin,vin,xout,vout,tout)
     xout = xin
     vr = sum(xin*vin)/r**2 * xin
     vout = vin-2.*vr
-    call cross(xin,vin,h)
-    smaj = 4.*pi*GN*Rsun**3*rhoSHO*r / (8.*pi*GN*Rsun**3*rhoSHO-3.*vtot**2*r)
-    e = sqrt(1.-sum(h**2)/(smaj*4.*pi*GN*Rsun**3*rhoSHO/3.))
-    theta = acos((smaj-e**2*smaj-r)/(e*r))
-    period = sqrt(3.*pi*smaj**3/(GN*Rsun**3*rhoSHO))
-    areatot = pi*smaj**2*sqrt(1.-e**2)
-    c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
-    area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
-    tout = (1.-area/areatot)*period
+    smaj = GN*Mstar*r / (2.*GN*Mstar-vtot**2*r)
+    if (sqrt(sum(vr**2))/vtot > 1.d0-1.d-10) then
+      c = 2.*smaj
+      tout = 2.*sqrt(c**3/(2.*GN*Mstar))*(sqrt(r/c*(1.-r/c))+acos(sqrt(r/c)))
+    else
+      call cross(xin,vin,h)
+      e = sqrt(1.-sum(h**2)/(smaj*GN*Mstar))
+      theta = acos((smaj-e**2*smaj-r)/(e*r))
+      period = sqrt(4.*pi**2*smaj**3/(GN*Mstar))
+      areatot = pi*smaj**2*sqrt(1.-e**2)
+      c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
+      area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
+      tout = (1.-area/areatot)*period
+    end if
   end if
 end subroutine
 
