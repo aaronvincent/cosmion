@@ -438,15 +438,41 @@ subroutine collide(x,vin,vout)
   !turns old velocity into new velocity
   use star
   implicit none
+  interface
+    subroutine omega(xin,vin,omega_out,niso)
+      double precision, intent(in) :: xin(3),vin(3)
+      double precision, intent(out) :: omega_out
+      integer, optional :: niso
+    end subroutine
+  end interface
   integer niso
   double precision, intent(in) :: x(3),vin(3)
   double precision, intent(out) :: vout(3)
   double precision :: v(3),vnuc(3),unuc,s(3),T,r,vcm,a,b
   double precision :: ctheta, phi,random_normal !outgoing angles in COM frame
-!) select a species to collide with. Hardcoded for now
-
-
+  double precision :: tot,omegas(29),ratio(29),cumsum(29)
+  integer :: i
+!) select a species to collide with
   niso = 1
+  if (.not. spinDep) then
+    ! Randomly select what species to collide with based on their interaction rates.
+    do i=1,29
+      call omega(x,vin,omegas(i),i)
+    end do
+    tot = sum(omegas)
+    ratio = omegas / tot
+    cumsum = [(sum(ratio(1:i)), i=1, size(ratio))]
+
+    call random_number(a)
+    a = a * cumsum(29)
+    do while (a>cumsum(niso))
+      niso = niso + 1
+    end do
+    !print*,"element:",niso
+    !print*,"probability:",ratio(niso)
+    !print*,"radius:",r
+  end if
+
   !a little different from Hannah's method: we draw 3 nuclear velocities from a local MB distribution
   v = vin
   r = sqrt(sum(x**2))
@@ -472,6 +498,7 @@ vout(3) = vcm*ctheta
 !boost back to star frame
 
 vout = vout + s
+species = niso
 
 
 
@@ -571,6 +598,13 @@ subroutine step(t,y,yprime)
   use init_conds
   use star
   implicit none
+  interface
+    subroutine omega(xin,vin,omega_out,niso)
+      double precision, intent(in) :: xin(3),vin(3)
+      double precision, intent(out) :: omega_out
+      integer, optional :: niso
+    end subroutine
+  end interface
   double precision, intent(in) :: t,y
   double precision, intent(out) ::  yprime
   double precision :: ri(3), vi(3)
@@ -589,6 +623,13 @@ subroutine pets(y,t,yprimeinv)
   use init_conds
   use star
   implicit none
+  interface
+    subroutine omega(xin,vin,omega_out,niso)
+      double precision, intent(in) :: xin(3),vin(3)
+      double precision, intent(out) :: omega_out
+      integer, optional :: niso
+    end subroutine
+  end interface
   double precision, intent(in) :: t,y
   double precision, intent(out) ::  yprimeinv
   double precision :: ri(3), vi(3),yprime
@@ -764,13 +805,16 @@ end subroutine step_sph
 
 
 
-subroutine omega(xin,vin,omega_out) !,omegaprime)
+subroutine omega(xin,vin,omega_out,niso) !,omegaprime)
   !compute omega and its derivative given the position and velocity of a particle
   !only scattering with a single species (hydrogen)
   use star
   implicit none
   double precision, intent(in) :: xin(3),vin(3)
-  double precision :: vT,r,v2,y,omega_out,omegaprime,yprime,accel(3),wprefactor
+  double precision, intent(out) :: omega_out
+  double precision :: vT,r,v2,y,omegaprime,yprime,accel(3),wprefactor,sigma
+  integer, optional :: niso
+  integer :: i
   ! The following conditional checks if the particle is inside the star.
   ! If it left the star, it raises a flag to be detected after the integration is complete.
   if (sqrt(sum(xin**2)) .ge. Rsun) then
@@ -782,20 +826,37 @@ subroutine omega(xin,vin,omega_out) !,omegaprime)
   r = sqrt(xin(1)**2+xin(2)**2+xin(3)**2)
   vT = sqrt(2.*kB*temperature(r)/mdm)
   v2 = vin(1)**2 + vin(2)**2 + vin(3)**2
-  y = sqrt(v2/mu/vT**2)
+  if (present(niso)) then
+    y = sqrt(v2*AtomicNumber(niso)/mu/vT**2)
+    sigma = sigSD * AtomicNumber(niso)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(niso)*mnucg))**2
+    wprefactor = 2.*sigma*ndensity(r,niso)*vT*sqrt(mu/AtomicNumber(niso))
+    omega_out = wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+  else
+    if (spinDep) then
+      y = sqrt(v2/mu/vT**2)
 
-! print*, "Omega: R ", r, " vT ", vT, " v ", sqrt(v2), " y ", y
+      ! print*, "Omega: R ", r, " vT ", vT, " v ", sqrt(v2), " y ", y
 
-  !niso = 1 = hydrogen hardcoded
-  wprefactor = 2.*sigSD*ndensity(r,1)*vT*sqrt(mu)
-  omega_out = wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
-  !the next bit is me not understanding wtf is going on. I made derivatives yay. Ignore
-!   accel = -OmegaSHO**2*xin
-!
-!   yprime = 2.d0*sum(accel*vin)/mdm !y^2'
-!   yprime = .5/y
-!   omegaprime = dndr(r,1)/ndensity(r,1)*omega_out + yprime*wprefactor*(erf(y)*(1.-1./y**2) + exp(-y**2)/sqrt(pi)/y)
-! print*,'y ', y, 'yprime ', yprime
+      !niso = 1 = hydrogen hardcoded
+      wprefactor = 2.*sigSD*ndensity(r,1)*vT*sqrt(mu)
+      omega_out = wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+      !the next bit is me not understanding wtf is going on. I made derivatives yay. Ignore
+      ! accel = -OmegaSHO**2*xin
+      !
+      ! yprime = 2.d0*sum(accel*vin)/mdm !y^2'
+      ! yprime = .5/y
+      ! omegaprime = dndr(r,1)/ndensity(r,1)*omega_out + yprime*wprefactor*(erf(y)*(1.-1./y**2) + exp(-y**2)/sqrt(pi)/y)
+      ! print*,'y ', y, 'yprime ', yprime
+    else
+      omega_out = 0.d0
+      do i=1,29
+        y = sqrt(v2*AtomicNumber(i)/mu/vT**2)
+        sigma = sigSD * AtomicNumber(i)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(i)*mnucg))**2
+        wprefactor = 2.*sigma*ndensity(r,i)*vT*sqrt(mu/AtomicNumber(i))
+        omega_out = omega_out + wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+      end do
+    end if
+  end if
 end subroutine omega
 
 
@@ -831,6 +892,7 @@ end subroutine omegaofR
 !probably could be somewhere else
 
 subroutine cross(x,y,z)
+  ! Compute the 3-component vector product of x cross y.
   implicit none
   double precision, intent(in) :: x(3),y(3)
   double precision, intent(out) :: z(3)
@@ -854,14 +916,15 @@ subroutine keplerian(xin,vin,xout,vout,tout)
   ! end interface
   double precision, intent(in) :: xin(3),vin(3)
   double precision, intent(out) :: xout(3),vout(3),tout
-  double precision :: r,vr,vtot,vesc
-  double precision :: h(3),vh(3),smaj,e,theta,norm(3),plvec(3),ang
+  double precision :: r,vr,vtot,vesc,Mstar
+  double precision :: h(3),smaj,e,theta,norm(3),plvec(3),ang
   double precision :: area,areatot,period,c
   ! These are for Hannah's method
   !double precision :: e1(3),e2(3),bigtheta,anomaly,timediff,vt,theta0,newh,newe,M
 
   ! Here we must include code for the Keplerian orbit of the particle.
   ! Using the initial position and velocity, we find the re-entry parameters.
+  Mstar = 4./3.*pi*Rsun**3*rhoSHO
   r = sqrt(sum(xin**2))
   vr = sum(xin*vin) / r
   vtot = sqrt(sum(vin**2))
@@ -878,9 +941,9 @@ subroutine keplerian(xin,vin,xout,vout,tout)
   else
     !print*,"It's coming back"
     ! Do Keplerian stuff
-    smaj = 4.*pi*GN*Rsun**3*rhoSHO*r / (8.*pi*GN*Rsun**3*rhoSHO-3.*vtot**2*r)
+    smaj = GN*Mstar*r / (2.*GN*Mstar-vtot**2*r)
     call cross(xin,vin,h)
-    e = sqrt(1.-sum(h**2)/(smaj*4.*pi*GN*Rsun**3*rhoSHO/3.))
+    e = sqrt(1.-sum(h**2)/(smaj*GN*Mstar))
     theta = acos((smaj-e**2*smaj-r)/(e*r))
     call cross(xin,vin,norm)
     norm = norm/sqrt(sum(norm**2))
@@ -894,7 +957,7 @@ subroutine keplerian(xin,vin,xout,vout,tout)
       vout = cos(ang)*xout+sin(ang)*plvec
     end if
     vout = (vout/r)*vtot
-    period = sqrt(3.*pi*smaj**3/(GN*Rsun**3*rhoSHO))
+    period = sqrt(4.*pi**2*smaj**3/(GN*Mstar))
     areatot = pi*smaj**2*sqrt(1-e**2)
     c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
     area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
@@ -957,16 +1020,16 @@ subroutine keplerian_rad(xin,vin,xout,vout,tout)
   ! end interface
   double precision, intent(in) :: xin(3),vin(3)
   double precision, intent(out) :: xout(3),vout(3),tout
-  double precision :: r,vtot,vesc,vr(3)
-  double precision :: h(3),vh(3),smaj,e,theta,norm(3),plvec(3),ang
+  double precision :: r,vtot,vesc,vr(3),Mstar
+  double precision :: h(3),smaj,e,theta
   double precision :: area,areatot,period,c
   ! Here we must include code for the Keplerian orbit of the particle.
   ! Using the initial position and velocity, we find the re-entry parameters.
   ! In this version, the particle re-enters at the same position.
+  Mstar = 4./3.*pi*Rsun**3*rhoSHO
   r = sqrt(sum(xin**2))
   vtot = sqrt(sum(vin**2))
-  ! this is now done in propagate, before walk is called.
-  ! vesc = 2.*Rsun*sqrt(2.*pi*GN*rhoSHO/3.)
+  ! vesc = sqrt(2.*GN*Mstar/Rsun) !nt used
   ! Check if the particle exceeds the escape velocity
   ! if (vtot >= vesc) then
   !   print*,"The particle has escaped!"
@@ -978,16 +1041,21 @@ subroutine keplerian_rad(xin,vin,xout,vout,tout)
     xout = xin
     vr = sum(xin*vin)/r**2 * xin
     vout = vin-2.*vr
-    call cross(xin,vin,h)
-    smaj = 4.*pi*GN*Rsun**3*rhoSHO*r / (8.*pi*GN*Rsun**3*rhoSHO-3.*vtot**2*r)
-    e = sqrt(1.-sum(h**2)/(smaj*4.*pi*GN*Rsun**3*rhoSHO/3.))
-    theta = acos((smaj-e**2*smaj-r)/(e*r))
-    period = sqrt(3.*pi*smaj**3/(GN*Rsun**3*rhoSHO))
-    areatot = pi*smaj**2*sqrt(1.-e**2)
-    c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
-    area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
-    tout = (1.-area/areatot)*period
-  ! end if
+    smaj = GN*Mstar*r / (2.*GN*Mstar-vtot**2*r)
+    if (sqrt(sum(vr**2))/vtot > 1.d0-1.d-10) then
+      c = 2.*smaj
+      tout = 2.*sqrt(c**3/(2.*GN*Mstar))*(sqrt(r/c*(1.-r/c))+acos(sqrt(r/c)))
+    else
+      call cross(xin,vin,h)
+      e = sqrt(1.-sum(h**2)/(smaj*GN*Mstar))
+      theta = acos((smaj-e**2*smaj-r)/(e*r))
+      period = sqrt(4.*pi**2*smaj**3/(GN*Mstar))
+      areatot = pi*smaj**2*sqrt(1.-e**2)
+      c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
+      area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
+      tout = (1.-area/areatot)*period
+    end if
+
 end subroutine
 
 function turnaroundEnergy(rin) result(eout)

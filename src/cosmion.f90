@@ -24,7 +24,7 @@ call random_seed
 
 
 !masses in g
-mdm = 5.d0*GeV
+mdm = 10.d0*GeV
 sigsd = 1.d-37 !cm^2
 Nsteps =1d5
 
@@ -35,7 +35,9 @@ Nsteps =1d5
 anTemp = .false.
 anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
-anPot = .true.
+anPot = .false.
+!Spin-dependent? ( = only hydrogen)
+spinDep = .true.
 
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
@@ -84,7 +86,8 @@ call spawn(xi,vi)
 print*,xi, vi
 vout = vi
 time = 0.d0
-write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time,outside_flag
+species = 0
+write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time,outside_flag,species
 
 ! big loop
 call timestamp
@@ -101,8 +104,8 @@ do i = 1,Nsteps
         xi = x
         vi = v
         outside_flag = 0
-        print*,"r before keplerian ",sqrt(sum(x**2))
-        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag
+        species = 0
+        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag,species
         call keplerian(xi,vi,x,v,time)
         print*,"r after keplerian ",sqrt(sum(x**2))
         !call keplerian_rad(xi,vi,x,v,time)
@@ -115,10 +118,11 @@ do i = 1,Nsteps
         call spawn(x,v)
         vout = v
         time = 0.d0
+        species = 0
         xi = x
         vi = v
     end if
-    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag
+    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag,species
     outside_flag = 0
 
 end do
