@@ -37,7 +37,7 @@ anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
 anPot = .false.
 !Spin-dependent? ( = only hydrogen)
-spinDep = .true.
+spinDep = .false.
 
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
@@ -52,7 +52,10 @@ if (anPot .or. SHO_debug) then
   print*, "Watch out, you are using a SHO potential"
 end if
 
-
+if ((.not. anPot) .and. (.not. spinDep)) then
+  print*, "Spin-independent collisions do not yet work for non-analytic potential"
+  stop
+end if
 
 
 allocate(times(Nsteps))
