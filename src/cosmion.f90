@@ -2,7 +2,7 @@ program cosmion
 use star
 implicit none
 
-double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time !the DM coordinates
+double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time,start,finish !the DM coordinates
 double precision, allocatable :: times(:) !makes reprocessing a bit easier to keep this in memory
 double precision, parameter :: GeV = 1.78266d-24
 
@@ -24,25 +24,27 @@ call random_seed
 
 
 !masses in g
-mdm = 10.d0*GeV
+mdm = 5.d0*GeV
 sigsd = 1.d-37 !cm^2
-Nsteps =5e5
+Nsteps =1d5
 
+!FOR A REALISTIC STAR SET EVERY FLAG TO FALSE
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
 !functions defined in star.f90
 !For testing only.
 anTemp = .false.
 anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
-anPot = .false.
-!turn this on if you want the full trajectory history, not just timestamps at every collision
-!Note this will take a ludicrous amount of HD space.
-fullHistory = .false.
+anPot = .true.
+
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
 !this flag does nothing if anPot is already true.
 SHO_debug = .true.
+!turn this on if you want the full trajectory history, not just timestamps at every collision
+!Note this will take a ludicrous amount of HD space. It also doesn't work right now
+fullHistory = .false.
 
 if (anPot .or. SHO_debug) then
   print*, "Watch out, you are using a SHO potential"
@@ -86,6 +88,7 @@ write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time,
 
 ! big loop
 call timestamp
+call cpu_time(start)
 do i = 1,Nsteps
     call propagate(xi,vi,x,v,time)
 
@@ -122,6 +125,9 @@ end do
 close(94)
 print*,"Simulation complete"
 call timestamp
+call cpu_time(finish)
+Print*, Nsteps, "Collisions perfomed in: ",finish-start, " seconds (", (finish-start)/dble(Nsteps), " sec/coll.)"
+
 ! call propagate()
 ! call collide()
 !

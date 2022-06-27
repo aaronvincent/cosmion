@@ -21,7 +21,7 @@ T  = .5*m*v.^2/kB*(2/3);
 t = positions(:,10);
 dE = .5*m*(vout.^2-v.^2);
 nbins = 150; %start here, see what happens
-bins = linspace(0,Rsun,nbins)
+bins = linspace(0,Rsun,nbins);
 L =bins*0;
 Tav = bins*0
 stdL = bins*0;
@@ -45,12 +45,13 @@ LL = LL/sum(t);
 stdLL = stdLL/sum(t);
 %% plots 
 % histogram(r)
+figure
 [R, Etrans,Q, K, nx, sigsOut,nxIso,nxLTE, Ltrans,LPS,LLTE,Rchi] = luminosity_constrho_slim(sigma,mx ,0, 0,220e5,1e-15,1);
 kfac = 0.5/(1+(0.31/K)^2)
 % % plot(bins,L,'linestyle','none')
-% errorbar(bins/Rsun,nxinSun*L,nxinSun*stdL,'linestyle','none','markersize',10,'marker','.')
-% hold on
-% plot(R(1:end-1),diff(LPS)./diff(R)/Rsun*kfac,'linewidth',2,'color',royalBlue,'linestyle','-');
+errorbar(bins/Rsun,nxinSun*L,nxinSun*stdL,'linestyle','none','markersize',10,'marker','.')
+hold on
+plot(R(1:end-1),diff(LPS)./diff(R)/Rsun*kfac,'linewidth',2,'color',royalBlue,'linestyle','-');
 
 
 % set(gca,'xlim',[0, 0.15])

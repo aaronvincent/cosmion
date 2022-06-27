@@ -249,9 +249,12 @@ else ! not anPot: numerically integrate potential
 
 !angular momentum/m = R x V
 call cross(xin,vin,ellvec)
+
   ! ellvec(3) = xin(1)*vin(2)-xin(2)*vin(1)
   ! ellvec(2) = xin(3)*vin(1)-xin(1)*vin(3)
   ! ellvec(1) = xin(2)*vin(3)-xin(3)*vin(2)
+
+
 
   taustart = 0.d0
 !magnitude of angular momentum.
@@ -320,7 +323,7 @@ if (fullHistory) then
 else !not full history
 
 !!! Main propagation
-  call pets_sph(taustart,yarr,yparr)
+  ! call pets_sph(taustart,yarr,yparr)
   ! print*,"flag before rkf", flag
   call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
   tout = yarr(1)
@@ -357,7 +360,7 @@ else !not full history
 
   ! call pets_to_surf2d(r,yarr,yparr)
  flag = 1 !reset integrator flag
-  if (sum(vin*xin)/r .lt. 0.d0) then
+  if (vr .lt. 0.d0) then
     !we need to integrate until vr changes sign, then integrate up to r
     !vr = 0 when we hit the angular momentum barrier
     !solve for rdot = 0 using energy conservation
@@ -402,19 +405,20 @@ else !not full history
   vout(2) = ell/dble(xout(1)) ! stick tangential velocity in the y direction
   vout(3) = 0.d0
 
+  tout = time
   ! print*,'vr is now ', dble(vout(1)), 'Vtheta is ', vout(2)
 
 else !outside flag
-  xout(1) = dble(yarr(2))
+  xout(1) = yarr(2)
   xout(2) = 0.d0
   xout(3) = 0.d0
 
-  vout(1) = dble(yarr(3)) !sqrt(2.*eoverm - ell**2/xout(1)**2 - 2.*potential(r)) !get radial velocity from position and conservation of energy
+  vout(1) = yarr(3) !sqrt(2.*eoverm - ell**2/xout(1)**2 - 2.*potential(r)) !get radial velocity from position and conservation of energy
   ! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
-  vout(2) = ell/dble(xout(1)) ! stick tangential velocity in the y direction
+  vout(2) = ell/xout(1) ! stick tangential velocity in the y direction
   vout(3) = 0.d0
 end if !outside flag != 0
-  !here we deal with escape
+
 
 
 end if !fullhistory
