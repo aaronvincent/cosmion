@@ -1,5 +1,6 @@
 program cosmion
 use star
+use init_conds ! used to check energy conservation. Can remove if not needed
 implicit none
 
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time,start,finish !the DM coordinates
@@ -24,9 +25,9 @@ call random_seed
 
 
 !masses in g
-mdm = 10.d0*GeV
+mdm = 3.d0*GeV
 sigsd = 1.d-37 !cm^2
-Nsteps =1d5
+Nsteps =1e5
 
 !FOR A REALISTIC STAR SET EVERY FLAG TO FALSE
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
@@ -36,14 +37,14 @@ anTemp = .false.
 anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
 anPot = .false.
-!Spin-dependent? ( = only hydrogen)
+!Spin-dependent? (true = only hydrogen)
 spinDep = .true.
 
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
 !this flag does nothing if anPot is already true.
-SHO_debug = .true.
+SHO_debug = .false.
 !turn this on if you want the full trajectory history, not just timestamps at every collision
 !Note this will take a ludicrous amount of HD space. It also doesn't work right now
 fullHistory = .false.
@@ -82,12 +83,12 @@ call spawn(xi,vi)
 ! xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
 ! vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
 ! xi = (/5.4906921d10,       0.12d0 ,      -2.0402393d0 /)
-! vi = (/-5000.d5,        -1000.d5,       0.d0    /)
+! vi = (/500.d5,        100.d5,       0.d0    /)
 print*,xi, vi
 vout = vi
 time = 0.d0
 species = 0
-write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time,outside_flag,species
+write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,species
 
 ! big loop
 call timestamp
@@ -105,9 +106,10 @@ do i = 1,Nsteps
         vi = v
         outside_flag = 0
         species = 0
-        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag,species
+        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,species
+        ! print*,"r before keplerian ",sqrt(sum(x**2))
         call keplerian(xi,vi,x,v,time)
-        print*,"r after keplerian ",sqrt(sum(x**2))
+        ! print*,"r after keplerian ",sqrt(sum(x**2))
         !call keplerian_rad(xi,vi,x,v,time)
         outside_flag = 1
         vout = v
@@ -122,7 +124,7 @@ do i = 1,Nsteps
         xi = x
         vi = v
     end if
-    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time,outside_flag,species
+    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm, outside_flag,species
     outside_flag = 0
 
 end do

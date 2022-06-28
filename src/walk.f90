@@ -378,7 +378,7 @@ else !not full history
     time = yarr(1)
     vr = yarr(2)
     ! print*,"time to rbar = ", time, " reached with velocity ",vr
-
+    r = Rbar
     ! vr = 1.d-10! start it off positive
     !reverse course!
     ! yarr(2) = abs(yarr(2))
@@ -389,11 +389,13 @@ else !not full history
   yarr(1) = time
   yarr(2) = dabs(vr)
   yarr(3) = 0.d0 !along for the ride, does nothing
-  call pets_to_surf2d(Rbar,yarr,yparr)
+  ! call pets_to_surf2d(Rbar,yarr,yparr)
   ! print*,"intergrating from ", Rbar, " to ", Rsun, "yarr ", yarr
   !place it just
-  call rkf45full (pets_to_surf2d,3,yarr, yparr, Rbar,Rsun*(1.-1.d-4), relerr, abserr, flag )
-  xout(1) = Rsun*(1.-1.d-4)
+
+  call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rsun, relerr, abserr, flag )
+  ! print*,"time to surface ", yarr(1), "radial v: ", yarr(2)
+  xout(1) = Rsun
   xout(2) = 0.d0
   xout(3) = 0.d0
   ! print*,'result of rkf time,', yarr(1), 'r ', r, 'vesc at rsun ', vescape(Rsun),'flag = ',flag
@@ -924,7 +926,8 @@ subroutine keplerian(xin,vin,xout,vout,tout)
 
   ! Here we must include code for the Keplerian orbit of the particle.
   ! Using the initial position and velocity, we find the re-entry parameters.
-  Mstar = 4./3.*pi*Rsun**3*rhoSHO
+  ! Mstar = 4./3.*pi*Rsun**3*rhoSHO
+  Mstar = Msun
   r = sqrt(sum(xin**2))
   vr = sum(xin*vin) / r
   vtot = sqrt(sum(vin**2))
@@ -946,9 +949,11 @@ subroutine keplerian(xin,vin,xout,vout,tout)
     e = sqrt(1.-sum(h**2)/(smaj*GN*Mstar))
     theta = acos((smaj-e**2*smaj-r)/(e*r))
     call cross(xin,vin,norm)
+    
     norm = norm/sqrt(sum(norm**2))
     call cross(norm,xin,plvec)
     xout = cos(2.*pi-theta*2.)*xin+sin(2.*pi-theta*2.)*plvec
+
     ang = acos(vr/vtot)
     call cross(norm,xout,plvec)
     if (cos(ang)>0) then
@@ -1026,7 +1031,7 @@ subroutine keplerian_rad(xin,vin,xout,vout,tout)
   ! Here we must include code for the Keplerian orbit of the particle.
   ! Using the initial position and velocity, we find the re-entry parameters.
   ! In this version, the particle re-enters at the same position.
-  Mstar = 4./3.*pi*Rsun**3*rhoSHO
+  ! Mstar = 4./3.*pi*Rsun**3*rhoSHO
   r = sqrt(sum(xin**2))
   vtot = sqrt(sum(vin**2))
   ! vesc = sqrt(2.*GN*Mstar/Rsun) !nt used
@@ -1038,6 +1043,7 @@ subroutine keplerian_rad(xin,vin,xout,vout,tout)
   ! else
     !print*,"It's coming back"
     ! Do Keplerian stuff
+    Mstar = Msun
     xout = xin
     vr = sum(xin*vin)/r**2 * xin
     vout = vin-2.*vr
