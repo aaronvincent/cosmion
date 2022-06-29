@@ -2,8 +2,14 @@ program cosmion
 use star
 use init_conds ! used to check energy conservation. Can remove if not needed
 implicit none
-
-double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time,start,finish !the DM coordinates
+interface
+  subroutine omega(xin,vin,omega_out,niso)
+    double precision, intent(in) :: xin(3),vin(3)
+    double precision, intent(out) :: omega_out
+    integer, optional :: niso
+  end subroutine
+end interface
+double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time,start,finish,weight !the DM coordinates
 double precision, allocatable :: times(:) !makes reprocessing a bit easier to keep this in memory
 double precision, parameter :: GeV = 1.78266d-24
 
@@ -26,9 +32,9 @@ call random_seed
 
 
 !masses in g
-mdm = 5.d0*GeV
-sigsd = 1.d-37 !cm^2
-Nsteps =1e5
+mdm = 4.d0*GeV
+sigsd = 1.d-34 !cm^2
+Nsteps =1e6
 
 !FOR A REALISTIC STAR SET EVERY FLAG TO FALSE
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
@@ -92,7 +98,8 @@ print*,xi, vi
 vout = vi
 time = 0.d0
 species = 0
-write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,species
+weight = 1.d10 !this ensures the initial point is not really counted
+write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,weight,species
 
 ! big loop
 call timestamp
@@ -110,10 +117,12 @@ do i = 1,Nsteps
         vi = v
         outside_flag = 0
         species = 0
-        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,species
+        !we're outside so the weight is 0?
+        weight = 0.d0
+        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,weight,species
         ! print*,"r before keplerian ",sqrt(sum(x**2)), "v ", v
         call keplerian(xi,vi,x,v,time)
-        ! print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
+        print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
         !call keplerian_rad(xi,vi,x,v,time)
         outside_flag = 1
         vout = v
@@ -129,7 +138,8 @@ do i = 1,Nsteps
         xi = x
         vi = v
     end if
-    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm, outside_flag,species
+    call omega(xi,vi,weight) !note this doesn't work for SI!!!
+    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm, outside_flag,weight,species
     outside_flag = 0
 
 end do

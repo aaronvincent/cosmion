@@ -368,17 +368,19 @@ else !not full history
     yarr(1) = time
     yarr(2) = vr
     yarr(3) = 0.d0 !along for the ride, does nothing
-    call newton(turnaroundEnergy, turnaroundEnergyPrime, r/10., Rbar, iters, .false.)
+    !initial guess is at r=  1m
+    call newton(turnaroundEnergy, turnaroundEnergyPrime, 100.d0, Rbar, iters, .false.)
     if (rbar .gt. Rsun) then
       print*, "Major problem, particle turnaround point is outside the star"
       stop
     end if
     ! print*,'Found reversal rbar = ',Rbar
     ! integrate vr from vr to zero
+    print*,"r = ", r, 'vr ', vr
     call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rbar, relerr, abserr, flag )
     time = yarr(1)
     vr = yarr(2)
-    ! print*,"time to rbar = ", time, " reached with velocity ",vr
+    print*,"time to rbar = ", time, " reached with velocity ",vr, "r = ", r, "rbar = ", rbar
     r = Rbar
     ! vr = 1.d-10! start it off positive
     !reverse course!
