@@ -53,6 +53,7 @@ module star
 
     if (anPot .or. SHO_debug) then
       rhoSHO = 148.9d0 !g/cm^3
+      Msun = 4./3.*pi*Rsun**3*rhoSHO
       rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*rhoSHO*mdm))
       OmegaSHO = sqrt(4./3.*pi*GN*rhoSHO)
     else

@@ -5,7 +5,7 @@ load positions.dat
 % load positions_SHO_m10_s40.mat
 %% 
 GeV = 1.78e-24;
-mx = 10; %* GeV;
+mx = 4; %* GeV;
 m = mx*GeV;
 Rsun = 69.57d9;
 Msun = 1.989e33; %g
