@@ -11,6 +11,7 @@ character*100 :: outfile, reprofile
 ! logical antemp, andens, anpot
 ! double precision mdm
 integer Nsteps, i,ratio
+debug_flag = .false. !used for debugging (duh)
 
 
 
@@ -25,7 +26,7 @@ call random_seed
 
 
 !masses in g
-mdm = 3.d0*GeV
+mdm = 5.d0*GeV
 sigsd = 1.d-37 !cm^2
 Nsteps =1e5
 
@@ -37,13 +38,8 @@ anTemp = .false.
 anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
 anPot = .false.
-<<<<<<< HEAD
-!Spin-dependent? ( = only hydrogen)
-spinDep = .false.
-=======
 !Spin-dependent? (true = only hydrogen)
 spinDep = .true.
->>>>>>> 9f54d65dc5ab74e0b0932f3bdc0f98ee635ab052
 
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
@@ -115,14 +111,15 @@ do i = 1,Nsteps
         outside_flag = 0
         species = 0
         write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,species
-        ! print*,"r before keplerian ",sqrt(sum(x**2))
+        ! print*,"r before keplerian ",sqrt(sum(x**2)), "v ", v
         call keplerian(xi,vi,x,v,time)
-        ! print*,"r after keplerian ",sqrt(sum(x**2))
+        ! print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
         !call keplerian_rad(xi,vi,x,v,time)
         outside_flag = 1
         vout = v
         xi = x
         vi = v
+
 
     else if (outside_flag == 2) then
         call spawn(x,v)

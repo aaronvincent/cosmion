@@ -1,11 +1,33 @@
 %units CGS everywhere
 defineColors;
-load positions.dat
+load ~/software/cosmion/positions.dat
 % positions = positions_SHO;
 % load positions_SHO_m10_s40.mat
 %% 
+
+%remove nans:
+positions(any(isnan(positions), 2), :) = [];
+
+%count up escape rate:
+TTot = sum(positions(:,9));
+escape = sum(positions(:,12)==2)/2;
+disp(['Escape rate is ' num2str(escape/TTot) 's^-1'] )
+%should add a statistical uncertainty on this
+
+
+
+%calculate time spent outside
+inds = positions(:,12)==1;
+toutside = sum(positions(inds,12));
+disp(['Time outside is ' num2str(toutside) ' s, ' num2str(toutside/TTot) ' of total time.'])
+
+%trim array to keep only positions inside the star.  
+inds = positions(:,12)~=0;
+positions(inds,:) = [];
+
+
 GeV = 1.78e-24;
-mx = 4; %* GeV;
+mx = 5; %* GeV;
 m = mx*GeV;
 Rsun = 69.57d9;
 Msun = 1.989e33; %g
@@ -23,7 +45,7 @@ dE = .5*m*(vout.^2-v.^2);
 nbins = 150; %start here, see what happens
 bins = linspace(0,Rsun,nbins);
 L =bins*0;
-Tav = bins*0
+Tav = bins*0;
 stdL = bins*0;
 
 for i = 2:nbins        
@@ -46,10 +68,11 @@ stdLL = stdLL/sum(t);
 %% plots 
 % histogram(r)
 figure
-[R, Etrans,Q, K, nx, sigsOut,nxIso,nxLTE, Ltrans,LPS,LLTE,Rchi] = luminosity_constrho_slim(sigma,mx ,0, 0,220e5,1e-15,1);
-kfac = 0.5/(1+(0.31/K)^2)
+% [R, Etrans,Q, K, nx, sigsOut,nxIso,nxLTE, Ltrans,LPS,LLTE,Rchi] = luminosity_constrho_slim(sigma,mx ,0, 0,220e5,1e-15,1);
+ [R, Etrans, K, nx, sigsOut,nxIso,rho,Ltrans,LPS] = luminosity(sigma,mx ,0, 0,220e5,1e-15,1);
+kfac = 0.5/(1+(0.31/K)^2);
 % % plot(bins,L,'linestyle','none')
-errorbar(bins/Rsun,nxinSun*L,nxinSun*stdL,'linestyle','none','markersize',10,'marker','.')
+errorbar(bins/Rsun,nxinSun*L,nxinSun*stdL,'linestyle','none','markersize',10,'marker','.');
 hold on
 plot(R(1:end-1),diff(LPS)./diff(R)/Rsun*kfac,'linewidth',2,'color',royalBlue,'linestyle','-');
 

@@ -335,6 +335,7 @@ else !not full history
   if (intcounter .eq. 1000) then
     print*,"You might be stuck in an infinite loop?"
     print*, "at time ", tout, 'tau', taustart,'going to ',tau,'yarr', yarr
+    debug_flag = .true.
     ! print*, yarr
   end if
   ! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
@@ -393,9 +394,9 @@ else !not full history
   ! print*,"intergrating from ", Rbar, " to ", Rsun, "yarr ", yarr
   !place it just
 
-  call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rsun, relerr, abserr, flag )
+  call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rsun-100.d0, relerr, abserr, flag )
   ! print*,"time to surface ", yarr(1), "radial v: ", yarr(2)
-  xout(1) = Rsun
+  xout(1) = Rsun-100. !1 meter below the surface
   xout(2) = 0.d0
   xout(3) = 0.d0
   ! print*,'result of rkf time,', yarr(1), 'r ', r, 'vesc at rsun ', vescape(Rsun),'flag = ',flag
@@ -689,10 +690,11 @@ subroutine pets_sph(tau,y,yprime)
 
   ! vr = -1.*vdot/abs(vdot)*vr
 
-
-! open(92,file = "intvals.dat",access='append')
-! write(92,*)tau, time, r, potential(r), vr, eoverm, ell,.5*(vr**2+ell**2/r**2)
-! close(92)
+if (debug_flag) then
+open(92,file = "intvals.dat",access='append')
+write(92,*)tau, time, r, potential(r), vr, eoverm, ell,.5*(vr**2+ell**2/r**2)
+close(92)
+end if
 ! print*,'calling step, r = ', r, "vr = ", vr, "potential = ", potential(r), "eoverm = ", eoverm,"ell = ", ell
 !this needs to be a loop if you have multiple species
   !y is not used
@@ -949,7 +951,7 @@ subroutine keplerian(xin,vin,xout,vout,tout)
     e = sqrt(1.-sum(h**2)/(smaj*GN*Mstar))
     theta = acos((smaj-e**2*smaj-r)/(e*r))
     call cross(xin,vin,norm)
-    
+
     norm = norm/sqrt(sum(norm**2))
     call cross(norm,xin,plvec)
     xout = cos(2.*pi-theta*2.)*xin+sin(2.*pi-theta*2.)*plvec
@@ -967,14 +969,16 @@ subroutine keplerian(xin,vin,xout,vout,tout)
     c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
     area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
     tout = (1.-area/areatot)*period
-    !print*,"a=",smaj
-    !print*,"e=",e
-    !print*,"theta=",theta
-    !print*,"norm=",norm
-    !print*,"xin=",xin
-    !print*,"vin=",vin
-    !print*,"xout=",xout
-    !print*,"vout=",vout
+    ! print*,"a=",smaj
+    ! print*,"e=",e
+    ! print*,"theta=",theta
+    ! print*,"norm=",norm
+    ! print*,"xin=",xin
+    ! print*,"vin=",vin
+    ! print*,"vrin=", vr
+    ! print*,"xout=",xout
+    ! print*,"vout=",vout
+    ! print*,"vr= ",  sum(xout*vout) / sqrt(sum(xout*xout))
     !print*,"area",area
     !print*,"areatot",areatot
     !print*,"tout=",tout
