@@ -9,7 +9,8 @@ interface
     integer, optional :: niso
   end subroutine
 end interface
-double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time,start,finish,weight !the DM coordinates
+double precision :: xi(3),vi(3),x(3),v(3),vout(3),xsamp(3),vsamp(3)
+double precision :: r,time,start,finish,weight !the DM coordinates
 double precision, parameter :: GeV = 1.78266d-24
 
 character*100 :: outfile, reprofile
@@ -31,9 +32,9 @@ call random_seed
 
 
 !masses in g
-mdm = 5.d0*GeV
+mdm = 3.d0*GeV
 sigsd = 1.d-37 !cm^2
-Nsteps =1e5
+Nsteps =1e4
 
 !FOR A REALISTIC STAR SET EVERY FLAG TO FALSE
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
@@ -50,7 +51,7 @@ spinDep = .true.
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
 !this flag does nothing if anPot is already true.
-SHO_debug = .true.
+SHO_debug = .false.
 !turn this on if you want the full trajectory history, not just timestamps at every collision
 !Note this will take a ludicrous amount of HD space. It also doesn't work right now
 fullHistory = .false.
@@ -88,9 +89,10 @@ call spawn(xi,vi)
 ! spawining at a specific place, for testing
 ! xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
 ! vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
-! xi = (/5.4906921d10,       0.12d0 ,      -2.0402393d0 /)
-! vi = (/-500.d5,        -100.d5,       0.d0    /)
-print*,xi, vi
+xi = (/5.4906921d10,       0.12d0 ,      -2.0402393d0 /)
+vi = (/-500.d5,        200.d5,       0.d0    /)
+print*,xi/1d5, "km"
+print*, vi/1d5, "km/s"
 vout = vi
 time = 0.d0
 species = 0
@@ -110,13 +112,19 @@ do i = 1,Nsteps
         !get the weight of this position
         call omega(xi,vi,weight) !note this doesn't work for SI!!!
     else if (outside_flag == 1) then
-        vout = v
-        outside_flag = 3 !this means we're travelling to the surface
+
+        outside_flag = 0
         species = 0
+        !travel to the surface, making friends along the way
+        call propagate_to_surface(xi,vi,x,v,time,xsamp,vsamp)
         ! We've found that we are leaving the star. Current position is now at the surface. We need to record the time that took though
         ! it would also help to take a sample from that path
         ! call omega(xi,vi,weight)
-        ! write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,weight,species
+        vout = v
+        !this counts as in the star, but we'll write some random position sampled from this last trajectory
+        weight = 1. ! this is wrong
+        write(94,*) xsamp(1),xsamp(2),xsamp(3), vsamp(1),vsamp(2),vsamp(3), &
+        vsamp(1),vsamp(2),vsamp(3), time, eoverm,outside_flag,weight,species
 
         xi = x
         vi = v

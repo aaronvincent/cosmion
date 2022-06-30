@@ -1,5 +1,5 @@
 ! This is where the action lives
-! Units are cgs, except mass
+! Units are cgs
 ! Follow the recipe: https://arxiv.org/abs/2111.06895
 
 
@@ -78,6 +78,7 @@ interface
     double precision, intent(in) :: t,y(3)
     double precision, intent(out) :: yp(3)
   end subroutine
+
   ! subroutine pets_to_turning(t,y,yp) !integrand for propagation to surface without collision
   !   double precision, intent(in) :: t,y(3)
   !   double precision, intent(out) :: yp(3)
@@ -120,8 +121,8 @@ abserr = 1.d-10
 flag = 1
 counter = 0
 !used for tracking position in integrator
-tvec(:) = tvec(:)*0.d0
-yarrout(:,:)= yarrout(:,:)*0.d0
+! tvec(:) = tvec(:)*0.d0
+! yarrout(:,:)= yarrout(:,:)*0.d0
 
 !optical depth that we travel before collision
 !1) draw an optical depth
@@ -333,25 +334,12 @@ end if !numerical solution
 
 end subroutine propagate
 
-subroutine propagate_to_boundary(xin,vin,xout,vout)
+!This gets called if we need to leave the star and need to figure out how long it takes
+subroutine propagate_to_surface(xin,vin,xout,vout,time,xsamp,vsamp)
   use star
   use init_conds
   implicit none
   interface
-    subroutine step(t,y,yp)
-      !should be rk kind but whatever
-      double precision, intent(in) :: t,y
-      double precision, intent(out) :: yp
-    end subroutine
-    subroutine pets(y,t,yp)
-      !should be rk kind but whatever
-      double precision, intent(in) :: t,y
-      double precision, intent(out) :: yp
-    end subroutine
-    subroutine pets_sph(t,y,yp)     !integrand for numerical potential
-      double precision, intent(in) :: t,y(3)
-      double precision, intent(out) :: yp(3)
-    end subroutine
     subroutine pets_to_surf(t,y,yp) !integrand for propagation to surface without collision
       double precision, intent(in) :: t,y
       double precision, intent(out) :: yp
@@ -360,17 +348,16 @@ subroutine propagate_to_boundary(xin,vin,xout,vout)
       double precision, intent(in) :: t,y(3)
       double precision, intent(out) :: yp(3)
     end subroutine
-    ! subroutine pets_to_turning(t,y,yp) !integrand for propagation to surface without collision
-    !   double precision, intent(in) :: t,y(3)
-    !   double precision, intent(out) :: yp(3)
-    ! end subroutine
+    subroutine step_to_surf2d(t,y,yprime)
+      double precision, intent(in) :: t,y(3)
+      double precision, intent(out) ::  yprime(3)
+    end subroutine
     function turnaroundEnergy(rin) result(eout)
     ! used to find turnaround for inward-bound orbits
       implicit none
       double precision, intent(in) :: rin
       double precision eout
      end function
-
     function turnaroundEnergyPrime(rin) result(eout)
       ! used to find turnaround for inward-bound orbits
       implicit none
@@ -381,8 +368,21 @@ subroutine propagate_to_boundary(xin,vin,xout,vout)
 
   double precision, intent(in) :: xin(3),vin(3)
   double precision, intent(out) :: xout(3),vout(3)
+  double precision, intent(out) :: xsamp(3),vsamp(3)
   double precision :: a, tau,r,vx
   double precision :: T,n,mfp,dt
+  double precision :: phase_r,amplitude_r,cosine
+  ! double precision :: phase_i(3), amplitude_i(3) !initial conditions now in module
+  !for the rkf45
+  integer :: neqn, flag,counter,fcounter
+  double precision :: y, yp, time, tout, relerr, abserr
+  double precision :: yarr(3), yparr(3),yarraux(3) !these are used in the numerical potential case
+  double precision ::  vr, vtheta,taustart,Rbar,aux, auxbar,taux
+  double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnitude
+  integer :: intcounter,iters
+
+  relerr = 1d-5
+  abserr = 1d-10
 
 if (anPot) then
 
@@ -433,13 +433,15 @@ if (anPot) then
     vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
     vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
 
-  else !analytic potential
+  else !integrate non-analytic potential
     time = 0.d0
     !integrate to just under Rsun, otherwise we get problems
     !1d integrator *should* work, but it goes berzerk. I don't get it
     ! call rkf45 (pets_to_surf,time, yp, r,Rsun*(1.-1.d-10), relerr, abserr, flag )
+    r = sqrt(sum(xin**2))
     vr = sum(vin*xin)/r
-
+    ! print*, "x", xin
+    ! print*, "v", vin
     ! call pets_to_surf2d(r,yarr,yparr)
     flag = 1 !reset integrator flag
     if (vr .lt. 0.d0) then
@@ -457,6 +459,7 @@ if (anPot) then
 
       if (rbar .gt. r) then
         print*, "Major problem, particle turnaround point is above where it started"
+         print*,"r = ", r, 'vr ', vr, "v ", sqrt(sum(vin**2)), 'rbar ', rbar, "vesc = ", vescape(r)
         stop
       end if
 
@@ -496,6 +499,30 @@ if (anPot) then
 
     call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rsun-100.d0, relerr, abserr, flag )
     ! print*,"time to surface ", yarr(1), "radial v: ", yarr(2)
+
+    !Now we need to produce a weighted sample from this
+    call random_number(a)
+      if (a .lt. time/(time+yarr(1))) then
+        yarraux(1) = r
+        yarraux(2) = vr
+        a = a*(time+yarr(1))
+        taux = 0.d0
+        call rkf45full (step_to_surf2d,3,yarraux, yparr, taux,a, relerr, abserr, flag )
+        !we choose a point from the ingoing trajectory
+      else
+        a = a*(time+yarr(1))
+        taux = time
+        call rkf45full (step_to_surf2d,3,yarraux, yparr, taux,a, relerr, abserr, flag )
+        !we choose a point from the outgoing trajectory
+      end if
+      xsamp(1) = yarraux(1)
+      xsamp(2) = 0.d0
+      xsamp(3) = 0.d0
+      vsamp(1) = yarraux(2)
+      vsamp(2) = ell/dble(xsamp(1))
+      vsamp(3) = 0.d0
+
+
     xout(1) = Rsun-100. !1 meter below the surface
     xout(2) = 0.d0
     xout(3) = 0.d0
@@ -516,7 +543,7 @@ if (anPot) then
 
 
 
-end subroutine propagate_to_boundary
+end subroutine propagate_to_surface
 
 subroutine collide(x,vin,vout)
   !turns old velocity into new velocity
@@ -678,6 +705,7 @@ end subroutine collide
 
   !this goes into the RK solver
   !y in this subroutine is the function we're integrating (i.e. the optical depth, tau)
+  !I don't think it's actually used (in favour of pets, which integrates dtau)
 subroutine step(t,y,yprime)
   use init_conds
   use star
@@ -722,12 +750,6 @@ subroutine pets(y,t,yprimeinv)
   vx = -amplitude_i*OmegaSHO*sin(OmegaSHO*t+phase_i)
 
 
-  ! open(92,file = "intvals_SHO.dat",access='append')
-  ! write(92,*) y, t, x, vx
-  ! close(92)
-  ! print*,'calling step, x = ', x
-!this needs to be a loop if you have multiple species
-  !y is not used
   call omega(x,vx,yprime)
   yprimeinv = 1.d0/yprime
 
@@ -755,21 +777,6 @@ subroutine pets_sph(tau,y,yprime)
     vr = -vr
   end if
 
-
-  !!commented out attempt to integrate single equation only
-  ! things become problematic when the particle turns around.
-  !vdot is used to get the sign of v_r
-
-  ! vdot = gofr(r) + ell**2/r**3
-  ! print*, "g", gofr(r)
-  !this is a fudge. Check later that energy is conserved.
-!   if (2.*eoverm - ell**2/r**2 - 2*potential(r) .lt. 0.d0) then
-!     vr = 0.d0
-!   else
-!   vr = sqrt(2.*eoverm - ell**2/r**2 - 2*potential(r))
-! end if
-
-  ! vr = -1.*vdot/abs(vdot)*vr
 
 if (debug_flag) then
 open(92,file = "intvals.dat",access='append')
@@ -838,6 +845,30 @@ end subroutine pets_sph
     ! close(92)
     ! print*, "r/rsun", aux2, 'aux ', aux
   end subroutine pets_to_surf2d
+
+  subroutine step_to_surf2d(t,y,yprime)
+    use init_conds
+    use star
+    implicit none
+    double precision, intent(in) :: t,y(3)
+    double precision, intent(out) ::  yprime(3)
+    double precision :: r
+    ! double precision ::  aux, aux2
+    ! double precision ::
+    !only 2 elements of the y vector are used. 3rd is along for the ride
+    !y(1) is time, y(2) is v
+    r = y(1)
+    yprime(1) = y(2) !dr/dt
+    yprime(2) = (gofr(r) + ell**2/r**3) ! dv/dt
+    yprime(3) = 0.d0
+    ! print*, 'r = ', r, 'time = ', y(1),'vr = ', y(2),'gofr,', gofr(r)
+    ! ! print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
+    ! open(92,file = "inching.dat",access='append')
+    ! write(92,*) r, potential(r),y(1),y(2),ell, eoverm
+    ! close(92)
+    ! print*, "r/rsun", aux2, 'aux ', aux
+  end subroutine step_to_surf2d
+
 
 !This subroutine takes the radial velocity v as the independent variable, and integrates r and t
 !to find the turning point. This is to track particles with v_tot > vesc, but are on an inward trajectory
