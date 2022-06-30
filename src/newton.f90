@@ -23,7 +23,7 @@ subroutine newton(f, fp, x0, x, iters, debug)
         double precision fp
       end function fp
     end interface
-    integer, parameter :: maxiter = 40
+    integer, parameter :: maxiter = 200
     double precision, parameter :: tol = 1.d-6
     double precision, intent(in) :: x0
     ! double precision:: f, fp
@@ -75,7 +75,7 @@ subroutine newton(f, fp, x0, x, iters, debug)
 
         fx = f(x)
         if (abs(fx) > tol) then
-            print *, '*** Warning: has not yet converged'
+            ! print *, '*** Warning: has not yet converged'
             endif
         endif
 

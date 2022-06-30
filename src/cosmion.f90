@@ -32,9 +32,9 @@ call random_seed
 
 
 !masses in g
-mdm = 4.d0*GeV
-sigsd = 1.d-34 !cm^2
-Nsteps =1e6
+mdm = 1.d0*GeV
+sigsd = 1.d-38 !cm^2
+Nsteps =1e5
 
 !FOR A REALISTIC STAR SET EVERY FLAG TO FALSE
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
@@ -93,7 +93,7 @@ call spawn(xi,vi)
 ! xi = (/2705710525.4906921,       -3873534938.3634562 ,      -2681433813.0402393 /)
 ! vi = (/-11372871.430080282,        73591.840957018765,       -16765518.336228890     /)
 ! xi = (/5.4906921d10,       0.12d0 ,      -2.0402393d0 /)
-! vi = (/500.d5,        100.d5,       0.d0    /)
+! vi = (/-500.d5,        -100.d5,       0.d0    /)
 print*,xi, vi
 vout = vi
 time = 0.d0
@@ -117,12 +117,12 @@ do i = 1,Nsteps
         vi = v
         outside_flag = 0
         species = 0
-        !we're outside so the weight is 0?
-        weight = 0.d0
+        !this is after collision, before we leave the star, so the weight is important
+        call omega(xi,vi,weight)
         write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,weight,species
         ! print*,"r before keplerian ",sqrt(sum(x**2)), "v ", v
         call keplerian(xi,vi,x,v,time)
-        print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
+        ! print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
         !call keplerian_rad(xi,vi,x,v,time)
         outside_flag = 1
         vout = v
