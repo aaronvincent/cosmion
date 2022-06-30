@@ -100,7 +100,7 @@ end interface
 double precision, intent(in) :: xin(3),vin(3)
 double precision, intent(out) :: xout(3),vout(3)
 double precision :: a, tau,r,vx
-double precision :: T,n,mfp,tvec(3000),yarrout(3000,3),dt
+double precision :: T,n,mfp,dt
 
 
 double precision :: phase_r,amplitude_r,cosine
@@ -191,48 +191,11 @@ if (anPot) then
       print*, "particle has evaporated"
       return
     end if
-
-    ! We now have to determine the path from the particle's initial position to the solar radius.
-
-    ! The Keplerian orbit places the particle at the boundary of the star.
-    ! So, if the particle is already outside the star, this moves it inside the boudary.
-    ! This should only take one step, which is a negligible time that is later ignored.
-    tout = 0.d0
-    dt = 2.d-4 ! Determines precision
-    xout = xin
-    r = sqrt(sum(xout**2))
-    do while (r/Rsun>=0.99999d0)
-      tout = tout+dt
-      xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
-      xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
-      xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
-      r = sqrt(sum(xout**2))
-    end do
-    vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
-    vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
-    vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
-    if (tout/dt > 1.) then
-      print*,"Multiple steps for particle to re-enter star:",tout/dt
-    end if
-    phase_i = atan(-vout,OmegaSHO*xout)
-    amplitude_i = xout/cos(phase_i)
-
-
-
-    ! This determines how long it takes the particle to reach the boundary of the star.
-    phase_r = atan(-(sum(xout*vout))/(omegaSHO*(sum(xout**2)-(sum(amplitude_i**2)/2))))
-    amplitude_r = (sum(xout**2)-sum(amplitude_i**2)/2)/cos(phase_r)
-    cosine = acos(((Rsun*0.99999005d0)**2-sum(amplitude_i**2)/2)/amplitude_r)
-    if (phase_r>0 .and. cosine<abs(phase_r)) then
-      cosine = 2*pi - cosine
-    else if (phase_r<0 .and. cosine<abs(phase_r)) then
-      cosine = -cosine
-    end if
-    tout = (cosine-phase_r)/(2.*OmegaSHO)
   end if
-  xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
-  xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
-  xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
+
+  ! xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
+  ! xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
+  ! xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
 
   vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
   vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
@@ -320,20 +283,20 @@ else !not full history
 
   call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
   tout = yarr(1)
+  !if the integrator didn't finish, make it
   do while (flag .eq. 4)
     intcounter = intcounter + 1
-  ! call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
   call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
   tout = yarr(1)
   if (intcounter .eq. 1000) then
     print*,"You might be stuck in an infinite loop?"
     print*, "at time ", tout, 'tau', taustart,'going to ',tau,'yarr', yarr
     debug_flag = .true.
-    ! print*, yarr
+
   end if
-  ! print*,'time = ', tout, 'tau after integration: ', taustart, 'flag: ', flag
+
   end do
-!!! Main propagation done
+!!! Main propagation done !!!
 
   !if at any point the integrator realized it had left the star, we ditch any
   !work it did and figure out the keplerian bit
@@ -345,78 +308,6 @@ else !not full history
     return
   end if !escape
   ! print*,'eoverm ', eoverm, 'r = ', r, 'ell = ', ell, 'v = ', vx, 'vesc ', vescape(r), 'potential ', potential(r)
-  time = 0.d0
-  !integrate to just under Rsun, otherwise we get problems
-  !1d integrator *should* work, but it goes berzerk. I don't get it
-  ! call rkf45 (pets_to_surf,time, yp, r,Rsun*(1.-1.d-10), relerr, abserr, flag )
-  vr = sum(vin*xin)/r
-
-  ! call pets_to_surf2d(r,yarr,yparr)
- flag = 1 !reset integrator flag
-  if (vr .lt. 0.d0) then
-    !we need to integrate until vr changes sign, then integrate up to r
-    !vr = 0 when we hit the angular momentum barrier
-    !solve for rdot = 0 using energy conservation
-    yarr(1) = time
-    yarr(2) = vr
-    yarr(3) = 0.d0 !along for the ride, does nothing
-    !initial guess is at r=  1m
-    ! initial guess is in the middle
-    aux = 0.d0
-    call newton(turnaroundEnergy, turnaroundEnergyPrime, aux, auxbar, iters, .false.)
-    rbar = Rsun*(1.d0/pi*atan(auxbar)+0.5)
-    ! this is no longer mathematically possible thanks to the change of variables in turnaroundEnergy
-    ! if (rbar .gt. Rsun) then
-    !   print*, "Major problem, particle turnaround point is outside the star"
-    !   stop
-    ! end if
-
-    !The Newton solver complains a lot, so I've squelched that and added a little check here:
-    if (sqrt(dabs(2.*eoverm-ell**2/rbar**2-2.d0*potential(Rbar))) .gt. .5d5) then
-      print*, "Radial velocity at turnaround is > ", sqrt(dabs(2.*eoverm-ell**2/rbar**2-2.d0*potential(Rbar)))/1.d2 " m/s, you may want to look into that"
-    end if
-    ! print*,'Found reversal rbar = ',Rbar, 'where v should be ', sqrt(dabs(2.*eoverm-ell**2/rbar**2-2.d0*potential(Rbar)))
-    ! integrate vr from vr to zero
-    ! print*,"r = ", r, 'vr ', vr
-    call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rbar, relerr, abserr, flag )
-    time = yarr(1)
-    vr = yarr(2)
-    ! print*,"time to rbar = ", time, " reached with velocity ",vr, "r = ", r, "rbar = ", rbar, 'flag = ', flag
-    r = Rbar
-    if (flag .ne. 2) then
-    print*, "Orbit integrator failed, something has gone wrong"
-    stop
-  end if
-    ! vr = 1.d-10! start it off positive
-    !reverse course!
-    ! yarr(2) = abs(yarr(2))
-    flag = 1
-    ! stop
-  end if
-
-  yarr(1) = time
-  yarr(2) = dabs(vr)
-  yarr(3) = 0.d0 !along for the ride, does nothing
-  ! call pets_to_surf2d(Rbar,yarr,yparr)
-  ! print*,"intergrating from ", Rbar, " to ", Rsun, "yarr ", yarr
-  !place it just
-
-  call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rsun-100.d0, relerr, abserr, flag )
-  ! print*,"time to surface ", yarr(1), "radial v: ", yarr(2)
-  xout(1) = Rsun-100. !1 meter below the surface
-  xout(2) = 0.d0
-  xout(3) = 0.d0
-  ! print*,'result of rkf time,', yarr(1), 'r ', r, 'vesc at rsun ', vescape(Rsun),'flag = ',flag
-  ! vout(1) = sqrt(2.*eoverm - ell**2/Rsun**2 - 2.*potential(Rsun)) !get radial velocity from position and conservation of energy
-  time = yarr(1)
-  vout(1) = yarr(2)
-  ! print*, "eoverm", eoverm, "phi", potential(Rsun),"ell ", ell
-  ! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
-  vout(2) = ell/dble(xout(1)) ! stick tangential velocity in the y direction
-  vout(3) = 0.d0
-
-  tout = time
-  ! print*,'vr is now ', dble(vout(1)), 'Vtheta is ', vout(2)
 
 else !outside flag
   xout(1) = yarr(2)
@@ -442,7 +333,190 @@ end if !numerical solution
 
 end subroutine propagate
 
+subroutine propagate_to_boundary(xin,vin,xout,vout)
+  use star
+  use init_conds
+  implicit none
+  interface
+    subroutine step(t,y,yp)
+      !should be rk kind but whatever
+      double precision, intent(in) :: t,y
+      double precision, intent(out) :: yp
+    end subroutine
+    subroutine pets(y,t,yp)
+      !should be rk kind but whatever
+      double precision, intent(in) :: t,y
+      double precision, intent(out) :: yp
+    end subroutine
+    subroutine pets_sph(t,y,yp)     !integrand for numerical potential
+      double precision, intent(in) :: t,y(3)
+      double precision, intent(out) :: yp(3)
+    end subroutine
+    subroutine pets_to_surf(t,y,yp) !integrand for propagation to surface without collision
+      double precision, intent(in) :: t,y
+      double precision, intent(out) :: yp
+    end subroutine
+    subroutine pets_to_surf2d(t,y,yp) !integrand for propagation to surface without collision
+      double precision, intent(in) :: t,y(3)
+      double precision, intent(out) :: yp(3)
+    end subroutine
+    ! subroutine pets_to_turning(t,y,yp) !integrand for propagation to surface without collision
+    !   double precision, intent(in) :: t,y(3)
+    !   double precision, intent(out) :: yp(3)
+    ! end subroutine
+    function turnaroundEnergy(rin) result(eout)
+    ! used to find turnaround for inward-bound orbits
+      implicit none
+      double precision, intent(in) :: rin
+      double precision eout
+     end function
 
+    function turnaroundEnergyPrime(rin) result(eout)
+      ! used to find turnaround for inward-bound orbits
+      implicit none
+      double precision, intent(in) :: rin
+      double precision eout
+    end function
+  end interface
+
+  double precision, intent(in) :: xin(3),vin(3)
+  double precision, intent(out) :: xout(3),vout(3)
+  double precision :: a, tau,r,vx
+  double precision :: T,n,mfp,dt
+
+if (anPot) then
+
+
+      ! We now have to determine the path from the particle's initial position to the solar radius.
+
+      ! The Keplerian orbit places the particle at the boundary of the star.
+      ! So, if the particle is already outside the star, this moves it inside the boudary.
+      ! This should only take one step, which is a negligible time that is later ignored.
+      tout = 0.d0
+      dt = 2.d-4 ! Determines precision
+      xout = xin
+      r = sqrt(sum(xout**2))
+      do while (r/Rsun>=0.99999d0)
+        tout = tout+dt
+        xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
+        xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
+        xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
+        r = sqrt(sum(xout**2))
+      end do
+      vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
+      vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
+      vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
+      if (tout/dt > 1.) then
+        print*,"Multiple steps for particle to re-enter star:",tout/dt
+      end if
+      phase_i = atan(-vout,OmegaSHO*xout)
+      amplitude_i = xout/cos(phase_i)
+
+
+
+      ! This determines how long it takes the particle to reach the boundary of the star.
+      phase_r = atan(-(sum(xout*vout))/(omegaSHO*(sum(xout**2)-(sum(amplitude_i**2)/2))))
+      amplitude_r = (sum(xout**2)-sum(amplitude_i**2)/2)/cos(phase_r)
+      cosine = acos(((Rsun*0.99999005d0)**2-sum(amplitude_i**2)/2)/amplitude_r)
+      if (phase_r>0 .and. cosine<abs(phase_r)) then
+        cosine = 2*pi - cosine
+      else if (phase_r<0 .and. cosine<abs(phase_r)) then
+        cosine = -cosine
+      end if
+      tout = (cosine-phase_r)/(2.*OmegaSHO)
+    ! end if
+    xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
+    xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
+    xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
+
+    vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
+    vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
+    vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
+
+  else !analytic potential
+    time = 0.d0
+    !integrate to just under Rsun, otherwise we get problems
+    !1d integrator *should* work, but it goes berzerk. I don't get it
+    ! call rkf45 (pets_to_surf,time, yp, r,Rsun*(1.-1.d-10), relerr, abserr, flag )
+    vr = sum(vin*xin)/r
+
+    ! call pets_to_surf2d(r,yarr,yparr)
+    flag = 1 !reset integrator flag
+    if (vr .lt. 0.d0) then
+      !we need to integrate until vr changes sign, then integrate up to r
+      !vr = 0 when we hit the angular momentum barrier
+      !solve for rdot = 0 using energy conservation
+      yarr(1) = time
+      yarr(2) = vr
+      yarr(3) = 0.d0 !along for the ride, does nothing
+      !initial guess is at r=  1m
+      ! initial guess is in the middle
+      aux = 0.d0
+      call newton(turnaroundEnergy, turnaroundEnergyPrime, aux, auxbar, iters, .false.)
+      rbar = Rsun*(1.d0/pi*atan(auxbar)+0.5)
+
+      if (rbar .gt. r) then
+        print*, "Major problem, particle turnaround point is above where it started"
+        stop
+      end if
+
+      !The Newton solver complains a lot, so I've squelched that and added a little check here:
+      if (sqrt(dabs(2.*eoverm-ell**2/rbar**2-2.d0*potential(Rbar))) .gt. 2.d5) then
+        print*, "Radial velocity at turnaround is ", sqrt(dabs(2.*eoverm-ell**2/rbar**2-2.d0*potential(Rbar)))/1.d2, &
+      " m/s, you may want to look into that"
+      end if
+      ! print*,'Found reversal rbar = ',Rbar, 'where v should be ', sqrt(dabs(2.*eoverm-ell**2/rbar**2-2.d0*potential(Rbar)))
+      ! integrate vr from vr to zero
+      ! print*,"r = ", r, 'vr ', vr
+      call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rbar, relerr, abserr, flag )
+      time = yarr(1)
+      vr = yarr(2)
+      if (flag .ne. 2) then
+      print*, "Orbit integrator failed with flag ", flag, ", something has gone wrong"
+      print*, "turnaround: ", rBar, "r ", r, "time ", time, "vr ", vr, "vtheta ", ell/r, "circular orbit v:",sqrt(-potential(r))
+      stop
+
+      ! print*,"time to rbar = ", time, " reached with velocity ",vr, "r = ", r, "rbar = ", rbar, 'flag = ', flag
+      r = Rbar
+
+    end if
+      ! vr = 1.d-10! start it off positive
+      !reverse course!
+      ! yarr(2) = abs(yarr(2))
+      flag = 1
+      ! stop
+    end if
+
+    yarr(1) = time
+    yarr(2) = dabs(vr)
+    yarr(3) = 0.d0 !along for the ride, does nothing
+    ! call pets_to_surf2d(Rbar,yarr,yparr)
+    ! print*,"intergrating from ", Rbar, " to ", Rsun, "yarr ", yarr
+    !place it just
+
+    call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rsun-100.d0, relerr, abserr, flag )
+    ! print*,"time to surface ", yarr(1), "radial v: ", yarr(2)
+    xout(1) = Rsun-100. !1 meter below the surface
+    xout(2) = 0.d0
+    xout(3) = 0.d0
+    ! print*,'result of rkf time,', yarr(1), 'r ', r, 'vesc at rsun ', vescape(Rsun),'flag = ',flag
+    ! vout(1) = sqrt(2.*eoverm - ell**2/Rsun**2 - 2.*potential(Rsun)) !get radial velocity from position and conservation of energy
+    time = yarr(1)
+    vout(1) = yarr(2)
+    ! print*, "eoverm", eoverm, "phi", potential(Rsun),"ell ", ell
+    ! print*, "ell, ", ell, ", r ", xout(1), "vout: ", ell/xout(1)
+    vout(2) = ell/dble(xout(1)) ! stick tangential velocity in the y direction
+    vout(3) = 0.d0
+
+    tout = time
+    ! print*,'vr is now ', dble(vout(1)), 'Vtheta is ', vout(2)
+
+  end if !analytic potential
+
+
+
+
+end subroutine propagate_to_boundary
 
 subroutine collide(x,vin,vout)
   !turns old velocity into new velocity

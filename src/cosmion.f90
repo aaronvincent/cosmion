@@ -10,7 +10,6 @@ interface
   end subroutine
 end interface
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time,start,finish,weight !the DM coordinates
-double precision, allocatable :: times(:) !makes reprocessing a bit easier to keep this in memory
 double precision, parameter :: GeV = 1.78266d-24
 
 character*100 :: outfile, reprofile
@@ -32,8 +31,8 @@ call random_seed
 
 
 !masses in g
-mdm = 1.d0*GeV
-sigsd = 1.d-38 !cm^2
+mdm = 5.d0*GeV
+sigsd = 1.d-37 !cm^2
 Nsteps =1e5
 
 !FOR A REALISTIC STAR SET EVERY FLAG TO FALSE
@@ -51,7 +50,7 @@ spinDep = .true.
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
 !this flag does nothing if anPot is already true.
-SHO_debug = .false.
+SHO_debug = .true.
 !turn this on if you want the full trajectory history, not just timestamps at every collision
 !Note this will take a ludicrous amount of HD space. It also doesn't work right now
 fullHistory = .false.
@@ -65,10 +64,7 @@ if ((.not. anPot) .and. (.not. spinDep)) then
   stop
 end if
 
-
-allocate(times(Nsteps))
-
-
+!initialize the star
 call init_star(anTemp,anDens,anPot,mdm,sigSD)
 
 ! open(94,file = "potential.dat")
@@ -111,15 +107,21 @@ do i = 1,Nsteps
         call collide(x,v,vout)
         xi = x
         vi = vout
+        !get the weight of this position
+        call omega(xi,vi,weight) !note this doesn't work for SI!!!
     else if (outside_flag == 1) then
         vout = v
+        outside_flag = 3 !this means we're travelling to the surface
+        species = 0
+        ! We've found that we are leaving the star. Current position is now at the surface. We need to record the time that took though
+        ! it would also help to take a sample from that path
+        ! call omega(xi,vi,weight)
+        ! write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,weight,species
+
         xi = x
         vi = v
-        outside_flag = 0
-        species = 0
-        !this is after collision, before we leave the star, so the weight is important
-        call omega(xi,vi,weight)
-        write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,weight,species
+
+
         ! print*,"r before keplerian ",sqrt(sum(x**2)), "v ", v
         call keplerian(xi,vi,x,v,time)
         ! print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
@@ -128,7 +130,8 @@ do i = 1,Nsteps
         vout = v
         xi = x
         vi = v
-
+        ! get the weight here
+        !the density of particles at the boundary = #
 
     else if (outside_flag == 2) then
         call spawn(x,v)
@@ -138,7 +141,7 @@ do i = 1,Nsteps
         xi = x
         vi = v
     end if
-    call omega(xi,vi,weight) !note this doesn't work for SI!!!
+
     write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm, outside_flag,weight,species
     outside_flag = 0
 
