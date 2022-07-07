@@ -1,8 +1,9 @@
 #!/bin/sh
+#SBATCH --array=0-20
 #SBATCH -c 1
-#SBATCH --time=24:00:00
-#SBATCH --mem=2048
-export OMP_NUM_THREADS=1
+#SBATCH --job-name=transport
+#SBATCH --time=03:00:00
+#SBATCH --mem=1024
 k=${SLURM_ARRAY_TASK_ID}
-fname=positions${k}.dat
-./cosmion.x 5. 1.d-37 10000 fname
+fname=run1/positions${k}.dat
+./cosmion.x 5. 1.d-37 100000 ${fname}

@@ -40,9 +40,12 @@ CALL GET_COMMAND_ARGUMENT(1,massin)   !first, read in the two values
 CALL GET_COMMAND_ARGUMENT(2,sigmain)
 CALL GET_COMMAND_ARGUMENT(3,Nstepsin)   !first, read in the two values
 CALL GET_COMMAND_ARGUMENT(4,FileNameIn)
-print*, "m = ", massin, " GeV"
+print*, "m = ", trim(massin), " GeV"
+! massin = trim(massin)
+
+
 read(massin,*)mdm
-read(sigmain,*)sigsd
+read(sigmain,* )sigsd
 read(Nstepsin,*)Nsteps
 ! read(FileNameIn,*)outfile
 outfile = FileNameIn
@@ -71,7 +74,8 @@ mdm = mdm*GeV
 anTemp = .false.
 anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
-anPot = .false.
+!This is an implementation of the original Banks et al Simulations
+anPot = .true.
 !Spin-dependent? (true = only hydrogen)
 spinDep = .true.
 
