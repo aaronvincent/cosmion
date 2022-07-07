@@ -116,7 +116,7 @@ integer :: intcounter,iters
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-5
+relerr = 1.d-4
 abserr = 1.d-10
 flag = 1
 counter = 0
@@ -287,27 +287,59 @@ else !not full history
   !if the integrator didn't finish, make it
   do while (flag .eq. 4)
     intcounter = intcounter + 1
-  call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
-  tout = yarr(1)
-  if (intcounter .eq. 1000) then
-    print*,"You might be stuck in an infinite loop?"
-    print*, "at time ", tout, 'tau', taustart,'going to ',tau,'yarr', yarr
-    debug_flag = .true.
-
-  end if
-
+    call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+    tout = yarr(1)
+    if (intcounter .eq. 1000) then
+      print*,"You might be stuck in an infinite loop?"
+      print*, "at time ", tout, 'tau', taustart,'going to ',tau,'yarr', yarr
+      debug_flag = .true.
+    end if
   end do
+
 !!! Main propagation done !!!
 
   !if at any point the integrator realized it had left the star, we ditch any
   !work it did and figure out the keplerian bit
   if (outside_flag .ne. 0 .or. r>Rsun) then
-    ! print*,"outside"
-  if (vx .ge. vescape(r)) then
-    outside_flag = 2
-    print*, "Escaped"
-    return
-  end if !escape
+
+
+    if (vx .ge. vescape(r)) then
+      outside_flag = 2
+      print*, "Escaped"
+      return
+    end if !escape
+    ! print*,"outside with flag ", flag
+    !Now sometimes the integrator goes absolutely bananas and tries to run away
+    !here we determine if that made any sense. If not, we'll do this step at smaller error
+    if ((sqrt(vr**2+ell**2/r**2)/sqrt(2.d0*(potential(Rsun)-potential(r)))) .lt. 1.d0) then
+     ! print*,"v/v to leave",sqrt(vr**2+ell**2/r**2)/sqrt(2.d0*(potential(Rsun)-potential(r)))
+     !try again
+     relerr = relerr/1000.
+     flag = 1
+     taustart = 0.d0
+     yarr(1) = 0.d0
+     yarr(2) = r
+     yarr(3) = vr
+     outside_flag = 0.
+     call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+     do while (flag .eq. 4)
+       intcounter = intcounter + 1
+       call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
+       tout = yarr(1)
+       if (intcounter .eq. 1000) then
+         print*,"You might be stuck in an infinite loop?"
+         print*, "at time ", tout, 'tau', taustart,'going to ',tau,'yarr', yarr
+         debug_flag = .true.
+       end if
+     end do
+     ! print*, "after retry: ", (sqrt(vr**2+ell**2/r**2)/sqrt(2.d0*(potential(Rsun)-potential(r)))),"outside_flag ", outside_flag
+     relerr = relerr*1000. !put error back where it started
+     if (flag .ne. 2) then
+       print*, "Exited retry integrator with flag = ", flag
+     end if
+    end if
+
+
   ! print*,'eoverm ', eoverm, 'r = ', r, 'ell = ', ell, 'v = ', vx, 'vesc ', vescape(r), 'potential ', potential(r)
 
 else !outside flag
@@ -440,6 +472,12 @@ if (anPot) then
     ! call rkf45 (pets_to_surf,time, yp, r,Rsun*(1.-1.d-10), relerr, abserr, flag )
     r = sqrt(sum(xin**2))
     vr = sum(vin*xin)/r
+    if ((sqrt(vr**2+ell**2/r**2)/sqrt(2.d0*(potential(Rsun)-potential(r)))) .lt. 1.d0) then
+      print*,"v/v to leave",sqrt(vr**2+ell**2/r**2)/sqrt(2.d0*(potential(Rsun)-potential(r)))
+      print*, "Called propagate_to_surf when it was impossible to leave the star"
+      stop
+    end if
+
     ! print*, "x", xin
     ! print*, "v", vin
     ! call pets_to_surf2d(r,yarr,yparr)
@@ -453,13 +491,13 @@ if (anPot) then
       yarr(3) = 0.d0 !along for the ride, does nothing
       !initial guess is at r=  1m
       ! initial guess is in the middle
-      aux = 0.d0
+      aux = tan(r/Rsun/2.d0-pi/2.d0)
       call newton(turnaroundEnergy, turnaroundEnergyPrime, aux, auxbar, iters, .false.)
       rbar = Rsun*(1.d0/pi*atan(auxbar)+0.5)
-
+      ! print*,"here"
       if (rbar .gt. r) then
         print*, "Major problem, particle turnaround point is above where it started"
-         print*,"r = ", r, 'vr ', vr, "v ", sqrt(sum(vin**2)), 'rbar ', rbar, "vesc = ", vescape(r)
+         print*,"r = ", r, 'vr ', vr, "v ", sqrt(sum(vin**2)), 'rbar ', rbar, "vesc = ", vescape(r),"vtheta ", ell/r
         stop
       end if
 
@@ -475,8 +513,8 @@ if (anPot) then
       time = yarr(1)
       vr = yarr(2)
       if (flag .ne. 2) then
-      print*, "Orbit integrator failed with flag ", flag, ", something has gone wrong"
-      print*, "turnaround: ", rBar, "r ", r, "time ", time, "vr ", vr, "vtheta ", ell/r, "circular orbit v:",sqrt(-potential(r))
+        print*, "Orbit integrator failed with flag ", flag, ", something has gone wrong"
+        print*, "turnaround: ", rBar, "r ", r, "time ", time, "vr ", vr, "vtheta ", ell/r, "circular orbit v:",sqrt(-potential(r))
       stop
 
       ! print*,"time to rbar = ", time, " reached with velocity ",vr, "r = ", r, "rbar = ", rbar, 'flag = ', flag
@@ -493,14 +531,20 @@ if (anPot) then
     yarr(1) = time
     yarr(2) = dabs(vr)
     yarr(3) = 0.d0 !along for the ride, does nothing
-    ! call pets_to_surf2d(Rbar,yarr,yparr)
-    ! print*,"intergrating from ", Rbar, " to ", Rsun, "yarr ", yarr
-    !place it just
+    aux = r
 
     call rkf45full (pets_to_surf2d,3,yarr, yparr, r,Rsun-100.d0, relerr, abserr, flag )
+    if (flag .ne. 2) then
+    print*, "Exit integrator failed with flag ", flag, ", something has gone wrong"
+    print*, "rbefore ", aux,  "vbefore",sqrt(vr**2+ell**2/r**2), "v to leave star", sqrt(2.d0*(potential(Rsun)-potential(aux)))
+    ! print*, "rbefore ", aux,  "vbefore",dabs(vr),"r ", r, "time ", yarr(1), "vr ", yarr(2), &
+    !  "vtheta ", ell/r, "potential",potential(r),"eoverm ",eoverm
+    stop
+    end if
     ! print*,"time to surface ", yarr(1), "radial v: ", yarr(2)
-
+    flag = 1
     !Now we need to produce a weighted sample from this
+    !this is equally weighted by time
     call random_number(a)
       if (a .lt. time/(time+yarr(1))) then
         yarraux(1) = r
@@ -797,6 +841,10 @@ end if
 
   yprime(3) = yprime(1)*(gofr(r) + ell**2/r**3) !EOM for rdot
 
+
+  ! open(92,file = "inching.dat",access='append')
+  ! write(92,*) r, potential(r),y(1),y(2),ell, eoverm
+  ! close(92)
 ! print*,'Arrays assigned: tau = ', tau, ' y = ', y, 'yprime = ', yprime
   ! print*, "g of r ", gofr(r)
 
@@ -838,7 +886,7 @@ end subroutine pets_sph
     yprime(1) = 1./y(2) !dt/dr
     yprime(2) = 1./y(2)*(gofr(r) + ell**2/r**3) ! dv/dr = dt/dr dv/dt
     yprime(3) = 0.d0
-    ! print*, 'r = ', r, 'time = ', y(1),'vr = ', y(2),'gofr,', gofr(r)
+     ! print*, 'r = ', r, 'time = ', y(1),'vr = ', y(2),'gofr,', gofr(r)
     ! ! print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
     ! open(92,file = "inching.dat",access='append')
     ! write(92,*) r, potential(r),y(1),y(2),ell, eoverm
@@ -1197,8 +1245,8 @@ function turnaroundEnergy(rin) result(eout)
   ! else if (r .gt. Rsun) then !you're going the wrong way
   !   eout = 2.d0*eoverm - ell**2/rsun**2 - 2.d0*potential(rsun)
   ! else
-  ! eout = 2.d0*eoverm - ell**2/r**2 - 2.d0*potential(r)
-  eout = 2.d0*r**2*eoverm - ell**2 - 2.d0*r**2*potential(r)
+  eout = 2.d0*eoverm - ell**2/r**2 - 2.d0*potential(r)
+  ! eout = 2.d0*r**2*eoverm - ell**2 - 2.d0*r**2*potential(r)
 ! end if
   ! open(92,file = "noot.dat",access='append')
   ! write(92,*) r, ell, potential(r), eout,eoverm, rin
@@ -1221,8 +1269,8 @@ function turnaroundEnergyPrime(rin) result(eout)
 ! else if (r .gt. Rsun) then !you're going the wrong way
 !     eout = 10.*dabs(2.d0*ell**2/r**3 +2.d0*gofr(r)) !big slope. Not meaningful
 !   else
-  ! eout = 2.d0*ell**2/r**3 +2.d0*gofr(r)
-  eout = 4.d0*r*eoverm -4.d0*r*potential(r) + 2.d0*r**2*gofr(r)
+  eout = 2.d0*ell**2/r**3 +2.d0*gofr(r)
+  ! eout = 4.d0*r*eoverm -4.d0*r*potential(r) + 2.d0*r**2*gofr(r)
   eout = eout*Rsun/pi/(1.+rin**2) !chain rule
 ! end if
 end function
