@@ -1117,8 +1117,6 @@ subroutine keplerian(xin,vin,xout,vout,tout)
 
   ! Here we must include code for the Keplerian orbit of the particle.
   ! Using the initial position and velocity, we find the re-entry parameters.
-  ! Mstar = 4./3.*pi*Rsun**3*rhoSHO
-  Mstar = Msun
   r = sqrt(sum(xin**2))
   vr = sum(xin*vin) / r
   vtot = sqrt(sum(vin**2))
@@ -1128,6 +1126,8 @@ subroutine keplerian(xin,vin,xout,vout,tout)
   else
     !print*,"It's coming back"
     ! Do Keplerian stuff
+    !Mstar = 4./3.*pi*Rsun**3*rhoSHO
+    Mstar = Msun
     smaj = GN*Mstar*r / (2.*GN*Mstar-vtot**2*r)
     call cross(xin,vin,h)
     e = sqrt(1.-sum(h**2)/(smaj*GN*Mstar))
@@ -1211,36 +1211,27 @@ subroutine keplerian_rad(xin,vin,xout,vout,tout)
   ! Here we must include code for the Keplerian orbit of the particle.
   ! Using the initial position and velocity, we find the re-entry parameters.
   ! In this version, the particle re-enters at the same position.
-  ! Mstar = 4./3.*pi*Rsun**3*rhoSHO
   r = sqrt(sum(xin**2))
   vtot = sqrt(sum(vin**2))
-  ! vesc = sqrt(2.*GN*Mstar/Rsun) !nt used
-  ! Check if the particle exceeds the escape velocity
-  ! if (vtot >= vesc) then
-  !   print*,"The particle has escaped!"
-  !   ! We'll have to stop and respawn the particle in this case.
-  !   outside_flag = 2
-  ! else
-    !print*,"It's coming back"
-    ! Do Keplerian stuff
-    Mstar = Msun
-    xout = xin
-    vr = sum(xin*vin)/r**2 * xin
-    vout = vin-2.*vr
-    smaj = GN*Mstar*r / (2.*GN*Mstar-vtot**2*r)
-    if (sqrt(sum(vr**2))/vtot > 1.d0-1.d-10) then
-      c = 2.*smaj
-      tout = 2.*sqrt(c**3/(2.*GN*Mstar))*(sqrt(r/c*(1.-r/c))+acos(sqrt(r/c)))
-    else
-      call cross(xin,vin,h)
-      e = sqrt(1.-sum(h**2)/(smaj*GN*Mstar))
-      theta = acos((smaj-e**2*smaj-r)/(e*r))
-      period = sqrt(4.*pi**2*smaj**3/(GN*Mstar))
-      areatot = pi*smaj**2*sqrt(1.-e**2)
-      c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
-      area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
-      tout = (1.-area/areatot)*period
-    end if
+  !Mstar = 4./3.*pi*Rsun**3*rhoSHO
+  Mstar = Msun
+  xout = xin
+  vr = sum(xin*vin)/r**2 * xin
+  vout = vin-2.*vr
+  smaj = GN*Mstar*r / (2.*GN*Mstar-vtot**2*r)
+  if (sqrt(sum(vr**2))/vtot > 1.d0-1.d-10) then
+    c = 2.*smaj
+    tout = 2.*sqrt(c**3/(2.*GN*Mstar))*(sqrt(r/c*(1.-r/c))+acos(sqrt(r/c)))
+  else
+    call cross(xin,vin,h)
+    e = sqrt(1.-sum(h**2)/(smaj*GN*Mstar))
+    theta = acos((smaj-e**2*smaj-r)/(e*r))
+    period = sqrt(4.*pi**2*smaj**3/(GN*Mstar))
+    areatot = pi*smaj**2*sqrt(1.-e**2)
+    c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
+    area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
+    tout = (1.-area/areatot)*period
+  end if
 
 end subroutine
 

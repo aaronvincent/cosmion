@@ -15,6 +15,7 @@ end interface
 character*100 :: massin, sigmain, Nstepsin, FileNameIn
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),xsamp(3),vsamp(3)
 double precision :: r,time,start,finish,weight !the DM coordinates
+double precision :: species_precision
 double precision, parameter :: GeV = 1.78266d-24
 
 character*100 :: outfile, reprofile
@@ -64,6 +65,7 @@ mdm = mdm*GeV
 ! mdm = 5.d0*GeV
 ! sigsd = 1.d-37 !cm^2
 ! Nsteps =5e5
+species_precision = 1.d-2 ! A precision of 0 uses all species for collisions.
 
 
 !set up the star
@@ -77,7 +79,7 @@ anDens = .false.
 !This is an implementation of the original Banks et al Simulations
 anPot = .true.
 !Spin-dependent? (true = only hydrogen)
-spinDep = .true.
+spinDep = .false.
 
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
@@ -95,6 +97,13 @@ end if
 if ((.not. anPot) .and. (.not. spinDep)) then
   print*, "Spin-independent collisions do not yet work for non-analytic potential"
   stop
+end if
+
+! Set the elements that the particle will collide with,
+! based on collision probabilities above the specified precision.
+if (.not. spinDep) then
+  call select_species(mdm/GeV,species_precision)
+  print '("Elements:"(29I4.2))', elements
 end if
 
 !initialize the star
