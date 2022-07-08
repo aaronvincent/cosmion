@@ -1,5 +1,6 @@
 FC=gfortran
-FOPT= -O3 -fPIC #-std=legacy# -Wall -fbounds-check -g  #legacy is required if you are running gcc 10 or later
+#Note that command line reading does not seem to work with gcc 9. No idea why. 8 and 11 ok
+FOPT= -O3 -fPIC #-std=legacy# -Wall -fbounds-check -g
 # FOPT = -pg
 SRCDIR = ./src
 # NUMDIR = ./numerical
