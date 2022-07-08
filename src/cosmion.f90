@@ -3,6 +3,7 @@ use star
 implicit none
 
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),r,time,start,finish !the DM coordinates
+double precision :: species_precision
 double precision, allocatable :: times(:) !makes reprocessing a bit easier to keep this in memory
 double precision, parameter :: GeV = 1.78266d-24
 
@@ -24,9 +25,10 @@ call random_seed
 
 
 !masses in g
-mdm = 10.d0*GeV
-sigsd = 1.d-37 !cm^2
-Nsteps =1d5
+mdm = 1.d0*GeV
+sigsd = 1.d-40 !cm^2
+species_precision = 1.d-2 ! A precision of 0 uses all species for collisions.
+Nsteps =1d4
 
 !FOR A REALISTIC STAR SET EVERY FLAG TO FALSE
 !anXXX flags: if false, interpolate from a stellar model. If true, use analytic
@@ -35,7 +37,7 @@ Nsteps =1d5
 anTemp = .false.
 anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
-anPot = .false.
+anPot = .true.
 !Spin-dependent? ( = only hydrogen)
 spinDep = .false.
 
@@ -60,6 +62,12 @@ end if
 
 allocate(times(Nsteps))
 
+! Set the elements that the particle will collide with,
+! based on collision probabilities above the specified precision.
+if (.not. spinDep) then
+  call select_species(mdm/GeV,species_precision)
+  print '("Elements:"(29I4.2))', elements
+end if
 
 call init_star(anTemp,anDens,anPot,mdm,sigSD)
 
