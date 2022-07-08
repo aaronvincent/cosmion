@@ -20,6 +20,7 @@ module star
   !this goes with the Serenelli table format
   double precision :: AtomicNumber(29) !29 is is the number from the Serenelli files; if you have fewer it shouldn't matter
   integer :: outside_flag, species
+  integer, allocatable :: elements(:)
 
 !functions
   ! double precision :: ndensity, temperature, potential
@@ -270,5 +271,29 @@ module star
           yout = yin(i-1)+(yin(i)-yin(i-1))/(xin(i)-xin(i-1))*(xout-xin(i-1))
           return
         end subroutine interp1
+
+  subroutine select_species(mass,precision)
+    double precision, intent(in) :: mass,precision
+    double precision :: masses(81),old_probs(81,size(AtomicNumber)),new_prob
+    integer :: i
+    if (precision == 0) then
+      ! Consider every element.
+      elements = (/(i,i=1,29)/)
+    else
+      ! List the elements with collision probabilities above the specified precision.
+      open(33,file='data/probabilities.dat')
+      do i=1,81
+        read(33,*) masses(i),old_probs(i,:)
+      end do
+      close(33)
+      allocate(elements(0))
+      do i=1,size(AtomicNumber)
+        call interp1(masses,old_probs(:,i),81,mass,new_prob)
+        if (new_prob >= precision) then
+          elements = [elements,i]
+        end if
+      end do
+    end if
+  end subroutine
 
 end module

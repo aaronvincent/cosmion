@@ -605,24 +605,28 @@ subroutine collide(x,vin,vout)
   double precision, intent(out) :: vout(3)
   double precision :: v(3),vnuc(3),unuc,s(3),T,r,vcm,a,b
   double precision :: ctheta, phi,random_normal !outgoing angles in COM frame
-  double precision :: tot,omegas(29),ratio(29),cumsum(29)
-  integer :: i
+  double precision, allocatable :: omegas(:),ratio(:),cumsum(:)
+  double precision :: tot
+  integer :: i,len
 !) select a species to collide with
   niso = 1
   if (.not. spinDep) then
     ! Randomly select what species to collide with based on their interaction rates.
-    do i=1,29
-      call omega(x,vin,omegas(i),i)
+    len = size(elements)
+    allocate(omegas(len),ratio(len),cumsum(len))
+    do i=1,len
+      call omega(x,vin,omegas(i),elements(i))
     end do
     tot = sum(omegas)
     ratio = omegas / tot
     cumsum = [(sum(ratio(1:i)), i=1, size(ratio))]
 
     call random_number(a)
-    a = a * cumsum(29)
+    a = a * cumsum(size(cumsum))
     do while (a>cumsum(niso))
       niso = niso + 1
     end do
+    niso = elements(niso)
     !print*,"element:",niso
     !print*,"probability:",ratio(niso)
     !print*,"radius:",r
@@ -807,6 +811,13 @@ subroutine pets_sph(tau,y,yprime)
   use init_conds
   use star
   implicit none
+  interface
+    subroutine omegaofR(rin,vr,Lin,omega_out,niso)
+      double precision, intent(in) :: rin,Lin,vr
+      double precision, intent(out) :: omega_out
+      integer, optional :: niso
+    end subroutine
+  end interface
   double precision, intent(in) :: tau,y(3)
   double precision, intent(out) ::  yprime(3)
   double precision :: omega_i, time, r, vr,vdot
@@ -978,25 +989,27 @@ subroutine omega(xin,vin,omega_out,niso) !,omegaprime)
   double precision, intent(out) :: omega_out
   double precision :: vT,r,v2,y,omegaprime,yprime,accel(3),wprefactor,sigma
   integer, optional :: niso
-  integer :: i
+  integer :: i,j
+  r = sqrt(sum(xin**2))
   ! The following conditional checks if the particle is inside the star.
   ! If it left the star, it raises a flag to be detected after the integration is complete.
-  if (sqrt(sum(xin**2)) .ge. Rsun) then
+  if (r .ge. Rsun) then
     !omega_out = 0.0
     !omega_out = omega_out/omega_out
     outside_flag = 1
     return
   end if
-  r = sqrt(xin(1)**2+xin(2)**2+xin(3)**2)
   vT = sqrt(2.*kB*temperature(r)/mdm)
   v2 = vin(1)**2 + vin(2)**2 + vin(3)**2
   if (present(niso)) then
+    ! Compute omega for the specified element (niso).
     y = sqrt(v2*AtomicNumber(niso)/mu/vT**2)
     sigma = sigSD * AtomicNumber(niso)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(niso)*mnucg))**2
     wprefactor = 2.*sigma*ndensity(r,niso)*vT*sqrt(mu/AtomicNumber(niso))
     omega_out = wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
   else
     if (spinDep) then
+      ! Compute omega for collisions with only hydrogen.
       y = sqrt(v2/mu/vT**2)
 
       ! print*, "Omega: R ", r, " vT ", vT, " v ", sqrt(v2), " y ", y
@@ -1012,11 +1025,13 @@ subroutine omega(xin,vin,omega_out,niso) !,omegaprime)
       ! omegaprime = dndr(r,1)/ndensity(r,1)*omega_out + yprime*wprefactor*(erf(y)*(1.-1./y**2) + exp(-y**2)/sqrt(pi)/y)
       ! print*,'y ', y, 'yprime ', yprime
     else
+      ! Compute the sum of the omegas for each element.
       omega_out = 0.d0
-      do i=1,29
-        y = sqrt(v2*AtomicNumber(i)/mu/vT**2)
-        sigma = sigSD * AtomicNumber(i)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(i)*mnucg))**2
-        wprefactor = 2.*sigma*ndensity(r,i)*vT*sqrt(mu/AtomicNumber(i))
+      do i=1,size(elements)
+        j = elements(i)
+        y = sqrt(v2*AtomicNumber(j)/mu/vT**2)
+        sigma = sigSD * AtomicNumber(j)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(j)*mnucg))**2
+        wprefactor = 2.*sigma*ndensity(r,j)*vT*sqrt(mu/AtomicNumber(j))
         omega_out = omega_out + wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
       end do
     end if
@@ -1024,16 +1039,19 @@ subroutine omega(xin,vin,omega_out,niso) !,omegaprime)
 end subroutine omega
 
 
-subroutine omegaofR(rin,vr,Lin,omega_out) !,omegaprime)
+subroutine omegaofR(rin,vr,Lin,omega_out,niso) !,omegaprime)
   !compute omega and its derivative given the position and velocity of a particle
   !different signature from omega used in the analytic potential version
-  !since we are alread in spherical coordinates
+  !since we are already in spherical coordinates
   !input: rin (radial coord), vr (velocity in r direction), Lin (angular momentum divided by m)
   !only scattering with a single species (hydrogen)
   use star
   implicit none
   double precision, intent(in) :: rin,Lin,vr
-  double precision :: vT,r,v2,y,omega_out,omegaprime,yprime,accel(3),wprefactor
+  double precision, intent(out) :: omega_out
+  double precision :: vT,r,v2,y,omegaprime,yprime,accel(3),wprefactor,sigma
+  integer, optional :: niso
+  integer :: i,j
   r = rin
   if (r .ge. Rsun) then
     outside_flag = 1
@@ -1041,13 +1059,34 @@ subroutine omegaofR(rin,vr,Lin,omega_out) !,omegaprime)
   end if
   vT = sqrt(2.*kB*temperature(r)/mdm)
   v2 = vr**2 + (Lin/r)**2 !v_theta = L/r
-  y = sqrt(v2/mu/vT**2)
+  if (present(niso)) then
+    ! Compute omega for the specified element (niso).
+    y = sqrt(v2*AtomicNumber(niso)/mu/vT**2)
+    sigma = sigSD * AtomicNumber(niso)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(niso)*mnucg))**2
+    wprefactor = 2.*sigma*ndensity(r,niso)*vT*sqrt(mu/AtomicNumber(niso))
+    omega_out = wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+  else
+    if (spinDep) then
+      ! Compute omega for collisions with only hydrogen.
+      y = sqrt(v2/mu/vT**2)
 
-! print*, "Omega: R ", r, " vT ", vT, " v ", sqrt(v2), " y ", y
+      ! print*, "Omega: R ", r, " vT ", vT, " v ", sqrt(v2), " y ", y
 
-  !niso = 1 = hydrogen hardcoded
-  wprefactor = 2.*sigSD*ndensity(r,1)*vT*sqrt(mu)
-  omega_out = wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+      !niso = 1 = hydrogen hardcoded
+      wprefactor = 2.*sigSD*ndensity(r,1)*vT*sqrt(mu)
+      omega_out = wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+    else
+      ! Compute the sum of the omegas for each element.
+      omega_out = 0.d0
+      do i=1,size(elements)
+        j = elements(i)
+        y = sqrt(v2*AtomicNumber(j)/mu/vT**2)
+        sigma = sigSD * AtomicNumber(j)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(j)*mnucg))**2
+        wprefactor = 2.*sigma*ndensity(r,j)*vT*sqrt(mu/AtomicNumber(j))
+        omega_out = omega_out + wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+      end do
+    end if
+  end if
 
 end subroutine omegaofR
 
@@ -1068,16 +1107,6 @@ end subroutine
 subroutine keplerian(xin,vin,xout,vout,tout)
   use star
   implicit none
-  ! interface
-  !   subroutine cross(x,y,z)
-  !     double precision, intent(in) :: x(3),y(3)
-  !     double precision, intent(out) :: z(3)
-  !   end subroutine
-  !   subroutine keplerian_rad(xin,vin,xout,vout,tout)
-  !     double precision, intent(in) :: xin(3),vin(3)
-  !     double precision, intent(out) :: xout(3),vout(3),tout
-  !   end subroutine
-  ! end interface
   double precision, intent(in) :: xin(3),vin(3)
   double precision, intent(out) :: xout(3),vout(3),tout
   double precision :: r,vr,vtot,vesc,Mstar
@@ -1093,13 +1122,6 @@ subroutine keplerian(xin,vin,xout,vout,tout)
   r = sqrt(sum(xin**2))
   vr = sum(xin*vin) / r
   vtot = sqrt(sum(vin**2))
-  !check now done before this sub is called
-  ! vesc = 2.*Rsun*sqrt(2.*pi*GN*rhoSHO/3.)
-  ! Check if the particle exceeds the escape velocity.
-  ! if (vtot >= vesc) then
-  !   print*,"The particle has escaped!"
-  !   ! We'll have to stop and respawn the particle in this case.
-  !   outside_flag = 2
   if (vr/vtot > 1.d0-1.d-10) then
     ! Use the Keplerian function for a radial emission.
     call keplerian_rad(xin,vin,xout,vout,tout)
@@ -1181,12 +1203,6 @@ end subroutine
 subroutine keplerian_rad(xin,vin,xout,vout,tout)
   use star
   implicit none
-  ! interface
-  !   subroutine cross(x,y,z)
-  !     double precision, intent(in) :: x(3),y(3)
-  !     double precision, intent(out) :: z(3)
-  !   end subroutine
-  ! end interface
   double precision, intent(in) :: xin(3),vin(3)
   double precision, intent(out) :: xout(3),vout(3),tout
   double precision :: r,vtot,vesc,vr(3),Mstar
