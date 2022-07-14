@@ -29,8 +29,6 @@ IF(COMMAND_ARGUMENT_COUNT().NE.4)THEN
   STOP
 ENDIF
 
-! outfile = 'positions.dat'
-! reprofile = 'rep_pos.dat' !only used if fullHistory = true
 
 !set parameters
 
@@ -77,8 +75,9 @@ anTemp = .false.
 anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
 !This is an implementation of the original Banks et al Simulations
-anPot = .true.
+anPot = .false.
 !Spin-dependent? (true = only hydrogen)
+!if false, species_precision above will determine how many isotopes to use
 spinDep = .false.
 
 
@@ -86,18 +85,13 @@ spinDep = .false.
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
 !this flag does nothing if anPot is already true.
 SHO_debug = .false.
-!turn this on if you want the full trajectory history, not just timestamps at every collision
-!Note this will take a ludicrous amount of HD space. It also doesn't work right now
-fullHistory = .false.
+
 
 if (anPot .or. SHO_debug) then
   print*, "Watch out, you are using a SHO potential"
 end if
 
-if ((.not. anPot) .and. (.not. spinDep)) then
-  print*, "Spin-independent collisions do not yet work for non-analytic potential"
-  stop
-end if
+
 
 ! Set the elements that the particle will collide with,
 ! based on collision probabilities above the specified precision.
@@ -121,8 +115,9 @@ call spawn(xi,vi)
 ! spawining at a specific place, for testing
 ! xi = (/4576709851.6707411d0,       -0.d0 ,      -0.d0 /)
 ! vi = (/-6068728.6153145507d0,        96408852.454135373d0,       0.d0     /)
-! xi = (/5.4906921d10,       0.12d0 ,      -2.0402393d0 /)
-! vi = (/-500.d5,        200.d5,       0.d0    /)
+! xi = (/50.d9,       0.12d0 ,      -2.0402393d0 /)
+! vi = (/-60.d5,        000.d5,       0.d0    /)
+
 print*,xi/1d5, "km"
 print*, vi/1d5, "km/s"
 vout = vi
