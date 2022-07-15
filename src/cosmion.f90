@@ -18,14 +18,14 @@ double precision :: r,time,start,finish,weight !the DM coordinates
 double precision :: species_precision
 double precision, parameter :: GeV = 1.78266d-24
 
-character*100 :: outfile, reprofile
+character*100 :: outfile, reprofile, spindepin
 ! logical antemp, andens, anpot
 ! double precision mdm
 integer Nsteps, i,ratio
 debug_flag = .false. !used for debugging (duh)
 
-IF(COMMAND_ARGUMENT_COUNT().NE.4)THEN
-  WRITE(*,*)'ERROR, FOUR COMMAND-LINE ARGUMENTS REQUIRED, STOPPING'
+IF(COMMAND_ARGUMENT_COUNT().NE.5)THEN
+  WRITE(*,*)'ERROR, FIVE COMMAND-LINE ARGUMENTS REQUIRED, STOPPING'
   STOP
 ENDIF
 
@@ -39,6 +39,7 @@ CALL GET_COMMAND_ARGUMENT(1,massin)   !first, read in the two values
 CALL GET_COMMAND_ARGUMENT(2,sigmain)
 CALL GET_COMMAND_ARGUMENT(3,Nstepsin)   !first, read in the two values
 CALL GET_COMMAND_ARGUMENT(4,FileNameIn)
+CALL GET_COMMAND_ARGUMENT(5,SpinDepIn)
 print*, "m = ", trim(massin), " GeV"
 ! massin = trim(massin)
 
@@ -48,6 +49,17 @@ read(sigmain,* )sigsd
 read(Nstepsin,*)Nsteps
 ! read(FileNameIn,*)outfile
 outfile = FileNameIn
+
+if (SpinDepIn .eq. "SI") then
+  spinDep = .false.
+  print*, "Spin-independent collisions"
+else if (SpinDepIn .eq. "SD") then
+  spinDep = .true.
+  print*, "Spin-dependent collisions"
+else
+  print*, "Error: Last argument should be SI or SD to select spin dependence"
+  stop
+end if
 
 print*, "initializing with "
 print*, "m = ", mdm, " GeV"
@@ -78,7 +90,7 @@ anDens = .false.
 anPot = .false.
 !Spin-dependent? (true = only hydrogen)
 !if false, species_precision above will determine how many isotopes to use
-spinDep = .false.
+! spinDep = .false.
 
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
