@@ -1,5 +1,6 @@
 FC=gfortran
-FOPT= -O3 -fPIC #-std=legacy# -Wall -fbounds-check -g  #legacy is required if you are running gcc 10 or later
+#Note that command line reading does not seem to work with gcc 9. No idea why. 8 and 11 ok
+FOPT= -O3 -fPIC #-std=legacy# -Wall -fbounds-check -g
 # FOPT = -pg
 SRCDIR = ./src
 # NUMDIR = ./numerical
@@ -10,7 +11,7 @@ SRCDIR = ./src
 
 MAIN = cosmion.o
 MFSHR = init_conds.o star.o walk.o
-NUMFOBJ =  num.o rkf45.o
+NUMFOBJ =  num.o  rkf45.o rkf45full.o rkf45fullhistory.o newton.o #rkf45full_n2.o
 
 
 
@@ -19,14 +20,14 @@ NUMFOBJ =  num.o rkf45.o
 
 
 csharedlib.so: $(MFSHR)  $(NUMFOBJ)
-	$(FC) $(FOPT) -shared -o $@ $(MFSHR)  $(NUMFOBJ)
+	$(FC) $(FOPT) -shared -o $@ $(NUMFOBJ) $(MFSHR)
 
 cosmion.x: $(MAIN)  csharedlib.so
-	${FC} $(FOPT) -L. -Wl,-rpath,. -o cosmion.x $(MAIN) csharedlib.so
+	${FC} $(FOPT) -L. -Wl,-rpath,. -o cosmion.x -fopenmp $(MAIN) csharedlib.so
 
 
-debug: $(NUMFOBJ) $(MFSHR) $(MAIN)
-		${FC} $(FOPT)  -Wl,-rpath,. -o cosmionDB.x $(MAIN) $(MFSHR) $(NUMFOBJ)
+# debug: $(NUMFOBJ) $(MFSHR) $(MAIN)
+# 		${FC} $(FOPT)  -Wl,-rpath,. -o cosmionDB.x $(MAIN) $(MFSHR) $(NUMFOBJ)
 
 
 
@@ -34,7 +35,7 @@ $(NUMFOBJ): %.o : $(SRCDIR)/%.f90
 	$(FC) $(FOPT) -c  $<
 
 $(MFSHR): %.o : $(SRCDIR)/%.f90
-	$(FC) $(FOPT) -c  $<
+	$(FC) $(FOPT) -c  $< -fopenmp
 
 $(MAIN): %.o : $(SRCDIR)/%.f90
 	$(FC) $(FOPT) -c  $<

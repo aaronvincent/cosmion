@@ -8,16 +8,19 @@ module star
 
 ! Units: length = cm, time = s,energy = erg, mass = g
 ! Turns on analytic treatment of the temperature, density, potential
-  logical :: anTemp, anDens, anPot
+
+  logical :: anTemp, anDens, anPot,fullHistory, SHO_debug,spinDep
+
   integer nlines
   double precision, allocatable :: tab_mencl(:), tab_starrho(:), tab_mfr(:,:), tab_r(:), tab_vesc(:), tab_dr(:)
   double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:),tab_phi(:)
-  double precision :: rhoSHO,rchi,Rsun,mdm,OmegaSHO,sigSD,mu
+  double precision :: rhoSHO,rchi,Rsun,Msun,mdm,OmegaSHO,sigSD,mu
   double precision, parameter :: c0=2.99792458d10,GN = 6.672d-8,pi=3.141592653, mnuc = 0.938,mnucg = 1.66054d-24
   double precision, parameter :: hbarc = 1.97d-14,kb = 1.3807d-16
   !this goes with the Serenelli table format
   double precision :: AtomicNumber(29) !29 is is the number from the Serenelli files; if you have fewer it shouldn't matter
-  integer :: outside_flag
+  integer :: outside_flag, species
+  integer, allocatable :: elements(:)
 
 !functions
   ! double precision :: ndensity, temperature, potential
@@ -49,10 +52,13 @@ module star
                           54.93, 55.845, 58.933, 58.693/)
       end if
 
-    if (anPot) then
+    if (anPot .or. SHO_debug) then
       rhoSHO = 148.9d0 !g/cm^3
+      Msun = 4./3.*pi*Rsun**3*rhoSHO
       rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*rhoSHO*mdm))
       OmegaSHO = sqrt(4./3.*pi*GN*rhoSHO)
+    else
+      rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*tab_starrho(1)*mdm))
     end if
     print*,"initialized star"
 
@@ -109,17 +115,64 @@ module star
     temperature =  T
   end function
 
-!get potential at radius r
+!get potential at radius r. Only valid inside star
   function potential(R)
     double precision, intent(in):: R
     double precision :: phi, potential
-    if (anPot) then
-      phi = 2.*pi*GN*rhoSHO*R**2/3.
+    if (anPot .or. SHO_debug) then
+      !making potential negative-definite. This avoid *isssues*
+      if (R .ge. Rsun) then
+        phi = -4.*pi*GN*rhoSHO*Rsun**3/R
+      else
+      phi = 2.*pi*GN*rhoSHO*(R**2-2.*Rsun**2)/3. !- 4.*pi/3.*rhoSHO*Rsun**2*GN
+    end if
     else
-      call interp1(tab_r,tab_phi,Nlines,R/Rsun,phi)
+      if (R/Rsun .lt. tab_r(1)) then
+        phi = tab_phi(1)
+      else if (R .ge. Rsun ) then
+        phi = -GN*Msun/R
+      else
+        call interp1(tab_r,tab_phi,Nlines,R/Rsun,phi)
+      end if
     end if
     potential =  phi
   end function
+
+  function vescape(R)
+    double precision, intent(in):: R
+    double precision ::  vescape
+    if (anPot .or. SHO_debug) then
+      ! phi = 2.*pi*GN*rhoSHO*R**2/3.
+      vescape = sqrt(-2*potential(R))
+    else
+      if (R/Rsun .le. tab_r(1)) then
+        vescape = tab_vesc(1)
+      else if (R .ge. Rsun ) then
+        vescape = sqrt(2*GN*Msun/R)
+      else
+        call interp1(tab_r,tab_vesc,Nlines,R/Rsun,vescape)
+      end if
+    end if
+
+  end function
+
+! get acceleration at R
+  function gofr(R)
+    double precision, intent(in):: R
+    double precision :: gofr
+    if (anPot .or. SHO_debug) then
+      gofr = -4.*pi*GN*rhoSHO*R/3.
+    else
+      if (R/Rsun < tab_r(1)) then
+        gofr = tab_g(1)
+      else if (R .ge. Rsun) then
+        gofr = -GN*Msun/R**2
+      else
+        call interp1(tab_r,tab_g,Nlines,R/Rsun,gofr)
+      end if
+    end if
+  end function
+
 
 
 
@@ -131,6 +184,7 @@ module star
           integer :: i,j, nlines,iostatus
 
           Rsun = 69.57d9 !this is set here, for other stars, this sub is not called
+          Msun = 1.989d33
           GMoverR=1.908e15
           !Get number of lines in the file
           open(99,file=filename)
@@ -217,5 +271,36 @@ module star
           yout = yin(i-1)+(yin(i)-yin(i-1))/(xin(i)-xin(i-1))*(xout-xin(i-1))
           return
         end subroutine interp1
+
+  subroutine select_species(mass,precision)
+    double precision, intent(in) :: mass,precision
+    double precision :: masses(81),old_probs(81,size(AtomicNumber)),new_prob
+    integer :: i
+    if (precision == 0) then
+      ! Consider every element.
+      elements = (/(i,i=1,29)/)
+    else
+      open(33,file='data/probabilities.dat')
+      do i=1,81
+        read(33,*) masses(i),old_probs(i,:)
+      end do
+      close(33)
+      if (mass < masses(1) .or. mass > masses(size(masses))) then
+        ! If the mass value is outside of the tabulated range, use all of the species.
+        print*,"DM mass is outside of range to determine species collision probabilities."
+        print*,"Using all species."
+        elements = (/(i,i=1,29)/)
+      else
+        ! List the elements with collision probabilities above the specified precision.
+        allocate(elements(0))
+        do i=1,size(AtomicNumber)
+          call interp1(masses,old_probs(:,i),81,mass,new_prob)
+          if (new_prob >= precision) then
+            elements = [elements,i]
+          end if
+        end do
+      end if
+    end if
+  end subroutine
 
 end module
