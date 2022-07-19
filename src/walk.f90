@@ -27,21 +27,34 @@ subroutine spawn(x,v)
   end if
   end do
   r = a
-  ! get theta, recycle a and b
-  call random_number(a)
-  ctheta = 2.*a-1.
-  a = acos(ctheta)
-  call random_number(b)
-  phi = 2.*pi*b
-  x(1) = r*sin(a)*sin(phi)
-  x(2) = r*sin(a)*cos(phi)
-  x(3) = r*ctheta
-  T = temperature(r)
 
-  ! print*,"Spawining velocities"
-  v(1) = Sqrt(kB*T/mdm)*random_normal()
-  v(2) = Sqrt(kB*T/mdm)*random_normal()
-  v(3) = Sqrt(kB*T/mdm)*random_normal()
+  if (anPot) then
+    ! get theta, recycle a and b
+    call random_number(a)
+    ctheta = 2.*a-1.
+    a = acos(ctheta)
+    call random_number(b)
+    phi = 2.*pi*b
+    x(1) = r*sin(a)*sin(phi)
+    x(2) = r*sin(a)*cos(phi)
+    x(3) = r*ctheta
+    T = temperature(r)
+  
+    ! print*,"Spawining velocities"
+    v(1) = Sqrt(kB*T/mdm)*random_normal()
+    v(2) = Sqrt(kB*T/mdm)*random_normal()
+    v(3) = Sqrt(kB*T/mdm)*random_normal()
+  else
+    x(1) = r
+    x(2) = 0.d0
+    x(3) = 0.d0
+    T = temperature(r)
+  
+    v(1) = Sqrt(kB*T/mdm)*random_normal()
+    v(2) = sqrt((Sqrt(kB*T/mdm)*random_normal())**2 + (Sqrt(kB*T/mdm)*random_normal())**2)
+    v(3) = 0.d0
+  end if
+  
 
   ! Throws the particle out of the star in one step, for testing
   !x = (/37d9,37d9,37d9/)
@@ -982,12 +995,12 @@ end subroutine step_sph
 
 subroutine omega(xin,vin,omega_out,niso) !,omegaprime)
   !compute omega and its derivative given the position and velocity of a particle
-  !only scattering with a single species (hydrogen)
   use star
+  use omp_lib
   implicit none
   double precision, intent(in) :: xin(3),vin(3)
   double precision, intent(out) :: omega_out
-  double precision :: vT,r,v2,y,omegaprime,yprime,accel(3),wprefactor,sigma
+  double precision :: vT,r,v2,y,omegaprime,yprime,accel(3),wprefactor,sigma,partial_omega
   integer, optional :: niso
   integer :: i,j
   r = sqrt(sum(xin**2))
@@ -1027,13 +1040,33 @@ subroutine omega(xin,vin,omega_out,niso) !,omegaprime)
     else
       ! Compute the sum of the omegas for each element.
       omega_out = 0.d0
-      do i=1,size(elements)
-        j = elements(i)
-        y = sqrt(v2*AtomicNumber(j)/mu/vT**2)
-        sigma = sigSD * AtomicNumber(j)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(j)*mnucg))**2
-        wprefactor = 2.*sigma*ndensity(r,j)*vT*sqrt(mu/AtomicNumber(j))
-        omega_out = omega_out + wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
-      end do
+      !$OMP parallel private(j,y,sigma,wprefactor,partial_omega) shared(omega_out)
+        partial_omega = 0.d0
+
+        !$OMP do
+        do i=1,size(elements)
+          j = elements(i)
+          y = sqrt(v2*AtomicNumber(j)/mu/vT**2)
+          sigma = sigSD * AtomicNumber(j)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(j)*mnucg))**2
+          wprefactor = 2.*sigma*ndensity(r,j)*vT*sqrt(mu/AtomicNumber(j))
+          partial_omega = partial_omega + wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+        end do
+        !$OMP end do
+
+        !$OMP critical
+          omega_out = omega_out + partial_omega
+        !$OMP end critical
+      !$OMP end parallel
+
+      ! This is the original, non-parallelized version of the computation.
+      !omega_out = 0.d0
+      !do i=1,size(elements)
+      !  j = elements(i)
+      !  y = sqrt(v2*AtomicNumber(j)/mu/vT**2)
+      !  sigma = sigSD * AtomicNumber(j)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(j)*mnucg))**2
+      !  wprefactor = 2.*sigma*ndensity(r,j)*vT*sqrt(mu/AtomicNumber(j))
+      !  omega_out = omega_out + wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+      !end do
     end if
   end if
 end subroutine omega
@@ -1044,12 +1077,12 @@ subroutine omegaofR(rin,vr,Lin,omega_out,niso) !,omegaprime)
   !different signature from omega used in the analytic potential version
   !since we are already in spherical coordinates
   !input: rin (radial coord), vr (velocity in r direction), Lin (angular momentum divided by m)
-  !only scattering with a single species (hydrogen)
   use star
+  use omp_lib
   implicit none
   double precision, intent(in) :: rin,Lin,vr
   double precision, intent(out) :: omega_out
-  double precision :: vT,r,v2,y,omegaprime,yprime,accel(3),wprefactor,sigma
+  double precision :: vT,r,v2,y,omegaprime,yprime,accel(3),wprefactor,sigma,partial_omega
   integer, optional :: niso
   integer :: i,j
   r = rin
@@ -1078,13 +1111,33 @@ subroutine omegaofR(rin,vr,Lin,omega_out,niso) !,omegaprime)
     else
       ! Compute the sum of the omegas for each element.
       omega_out = 0.d0
-      do i=1,size(elements)
-        j = elements(i)
-        y = sqrt(v2*AtomicNumber(j)/mu/vT**2)
-        sigma = sigSD * AtomicNumber(j)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(j)*mnucg))**2
-        wprefactor = 2.*sigma*ndensity(r,j)*vT*sqrt(mu/AtomicNumber(j))
-        omega_out = omega_out + wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
-      end do
+      !$OMP parallel private(j,y,sigma,wprefactor,partial_omega) shared(omega_out)
+        partial_omega = 0.d0
+
+        !$OMP do
+        do i=1,size(elements)
+          j = elements(i)
+          y = sqrt(v2*AtomicNumber(j)/mu/vT**2)
+          sigma = sigSD * AtomicNumber(j)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(j)*mnucg))**2
+          wprefactor = 2.*sigma*ndensity(r,j)*vT*sqrt(mu/AtomicNumber(j))
+          partial_omega = partial_omega + wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+        end do
+        !$OMP end do
+
+        !$OMP critical
+          omega_out = omega_out + partial_omega
+        !$OMP end critical
+      !$OMP end parallel
+
+      ! This is the original, non-parallelized version of the computation.
+      !omega_out = 0.d0
+      !do i=1,size(elements)
+      !  j = elements(i)
+      !  y = sqrt(v2*AtomicNumber(j)/mu/vT**2)
+      !  sigma = sigSD * AtomicNumber(j)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(j)*mnucg))**2
+      !  wprefactor = 2.*sigma*ndensity(r,j)*vT*sqrt(mu/AtomicNumber(j))
+      !  omega_out = omega_out + wprefactor*((y+.5/y)*erf(y)+1./sqrt(pi)*exp(-y**2))
+      !end do
     end if
   end if
 

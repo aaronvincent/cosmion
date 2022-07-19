@@ -77,7 +77,7 @@ anTemp = .false.
 anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
 !This is an implementation of the original Banks et al Simulations
-anPot = .true.
+anPot = .false.
 !Spin-dependent? (true = only hydrogen)
 spinDep = .false.
 
@@ -92,11 +92,6 @@ fullHistory = .false.
 
 if (anPot .or. SHO_debug) then
   print*, "Watch out, you are using a SHO potential"
-end if
-
-if ((.not. anPot) .and. (.not. spinDep)) then
-  print*, "Spin-independent collisions do not yet work for non-analytic potential"
-  stop
 end if
 
 ! Set the elements that the particle will collide with,
@@ -162,10 +157,13 @@ do i = 1,Nsteps
         vi = v
 
 
-        ! print*,"r before keplerian ",sqrt(sum(x**2)), "v ", v
-        call keplerian(xi,vi,x,v,time)
-        ! print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
-        !call keplerian_rad(xi,vi,x,v,time)
+        !print*,"r before keplerian ",sqrt(sum(x**2)), "v ", v
+        if (anPot) then
+          call keplerian(xi,vi,x,v,time)
+        else
+          call keplerian_rad(xi,vi,x,v,time)
+        end if
+        !print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
         outside_flag = 1
         vout = v
         xi = x
