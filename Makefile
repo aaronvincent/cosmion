@@ -20,10 +20,10 @@ NUMFOBJ =  num.o  rkf45.o rkf45full.o rkf45fullhistory.o newton.o #rkf45full_n2.
 
 
 csharedlib.so: $(MFSHR)  $(NUMFOBJ)
-	$(FC) $(FOPT) -shared -o $@  $(NUMFOBJ) $(MFSHR)
+	$(FC) $(FOPT) -shared -o $@ $(NUMFOBJ) $(MFSHR)
 
 cosmion.x: $(MAIN)  csharedlib.so
-	${FC} $(FOPT) -L. -Wl,-rpath,. -o cosmion.x $(MAIN) csharedlib.so
+	${FC} $(FOPT) -L. -Wl,-rpath,. -o cosmion.x -fopenmp $(MAIN) csharedlib.so
 
 
 # debug: $(NUMFOBJ) $(MFSHR) $(MAIN)
@@ -35,7 +35,7 @@ $(NUMFOBJ): %.o : $(SRCDIR)/%.f90
 	$(FC) $(FOPT) -c  $<
 
 $(MFSHR): %.o : $(SRCDIR)/%.f90
-	$(FC) $(FOPT) -c  $<
+	$(FC) $(FOPT) -c  $< -fopenmp
 
 $(MAIN): %.o : $(SRCDIR)/%.f90
 	$(FC) $(FOPT) -c  $<

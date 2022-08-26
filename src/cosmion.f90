@@ -16,9 +16,7 @@ character*100 :: massin, sigmain, Nstepsin, FileNameIn
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),xsamp(3),vsamp(3)
 double precision :: r,time,start,finish,weight !the DM coordinates
 double precision :: species_precision
-double precision, parameter :: GeV = 1.78266d-24
-
-character*100 :: outfile, reprofile, spindepin
+character*100 :: outfile, reprofile, spindepin, starfile
 ! logical antemp, andens, anpot
 ! double precision mdm
 integer Nsteps, i,ratio
@@ -29,6 +27,7 @@ IF(COMMAND_ARGUMENT_COUNT().NE.5)THEN
   STOP
 ENDIF
 
+starfile = "data/struct_b16_agss09_modified.dat"
 
 !set parameters
 
@@ -103,17 +102,15 @@ if (anPot .or. SHO_debug) then
   print*, "Watch out, you are using a SHO potential"
 end if
 
-
+!initialize the star
+call init_star(anTemp,anDens,anPot,mdm,sigSD,starfile)
 
 ! Set the elements that the particle will collide with,
 ! based on collision probabilities above the specified precision.
 if (.not. spinDep) then
-  call select_species(mdm/GeV,species_precision)
+  call select_species(species_precision)
   print '("Elements:"(29I4.2))', elements
 end if
-
-!initialize the star
-call init_star(anTemp,anDens,anPot,mdm,sigSD)
 
 !wipe the trajectory history
 ! open(99,file=reprofile,status='replace')
@@ -149,7 +146,7 @@ do i = 1,Nsteps
         xi = x
         vi = vout
         !get the weight of this position
-        call omega(xi,vi,weight) !note this doesn't work for SI!!!
+        call omega(xi,vi,weight)
     else if (outside_flag == 1) then
 
         outside_flag = 3 !this indicates that the weights need to be time/time_total. You need to include this weighting in your analysis script since it can't be done on the fly
@@ -169,10 +166,13 @@ do i = 1,Nsteps
         vi = v
 
 
-        ! print*,"r before keplerian ",sqrt(sum(x**2)), "v ", v
-        call keplerian(xi,vi,x,v,time)
-        ! print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
-        !call keplerian_rad(xi,vi,x,v,time)
+        !print*,"r before keplerian ",sqrt(sum(x**2)), "v ", v
+        if (anPot) then
+          call keplerian(xi,vi,x,v,time)
+        else
+          call keplerian_rad(xi,vi,x,v,time)
+        end if
+        !print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
         outside_flag = 1
         vout = v
         xi = x
