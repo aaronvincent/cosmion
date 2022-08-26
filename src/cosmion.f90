@@ -16,20 +16,17 @@ character*100 :: massin, sigmain, Nstepsin, FileNameIn
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),xsamp(3),vsamp(3)
 double precision :: r,time,start,finish,weight !the DM coordinates
 double precision :: species_precision
-
-character*300 :: outfile, reprofile, starfile
+character*100 :: outfile, reprofile, spindepin, starfile
 ! logical antemp, andens, anpot
 ! double precision mdm
 integer Nsteps, i,ratio
 debug_flag = .false. !used for debugging (duh)
 
-IF(COMMAND_ARGUMENT_COUNT().NE.4)THEN
-  WRITE(*,*)'ERROR, FOUR COMMAND-LINE ARGUMENTS REQUIRED, STOPPING'
+IF(COMMAND_ARGUMENT_COUNT().NE.5)THEN
+  WRITE(*,*)'ERROR, FIVE COMMAND-LINE ARGUMENTS REQUIRED, STOPPING'
   STOP
 ENDIF
 
-! outfile = 'positions.dat'
-! reprofile = 'rep_pos.dat' !only used if fullHistory = true
 starfile = "data/struct_b16_agss09_modified.dat"
 
 !set parameters
@@ -41,6 +38,7 @@ CALL GET_COMMAND_ARGUMENT(1,massin)   !first, read in the two values
 CALL GET_COMMAND_ARGUMENT(2,sigmain)
 CALL GET_COMMAND_ARGUMENT(3,Nstepsin)   !first, read in the two values
 CALL GET_COMMAND_ARGUMENT(4,FileNameIn)
+CALL GET_COMMAND_ARGUMENT(5,SpinDepIn)
 print*, "m = ", trim(massin), " GeV"
 ! massin = trim(massin)
 
@@ -50,6 +48,17 @@ read(sigmain,* )sigsd
 read(Nstepsin,*)Nsteps
 ! read(FileNameIn,*)outfile
 outfile = FileNameIn
+
+if (SpinDepIn .eq. "SI") then
+  spinDep = .false.
+  print*, "Spin-independent collisions"
+else if (SpinDepIn .eq. "SD") then
+  spinDep = .true.
+  print*, "Spin-dependent collisions"
+else
+  print*, "Error: Last argument should be SI or SD to select spin dependence"
+  stop
+end if
 
 print*, "initializing with "
 print*, "m = ", mdm, " GeV"
@@ -79,16 +88,15 @@ anDens = .false.
 !This is an implementation of the original Banks et al Simulations
 anPot = .false.
 !Spin-dependent? (true = only hydrogen)
-spinDep = .false.
+!if false, species_precision above will determine how many isotopes to use
+! spinDep = .false.
 
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
 !this flag does nothing if anPot is already true.
 SHO_debug = .false.
-!turn this on if you want the full trajectory history, not just timestamps at every collision
-!Note this will take a ludicrous amount of HD space. It also doesn't work right now
-fullHistory = .false.
+
 
 if (anPot .or. SHO_debug) then
   print*, "Watch out, you are using a SHO potential"
@@ -116,8 +124,9 @@ call spawn(xi,vi)
 ! spawining at a specific place, for testing
 ! xi = (/4576709851.6707411d0,       -0.d0 ,      -0.d0 /)
 ! vi = (/-6068728.6153145507d0,        96408852.454135373d0,       0.d0     /)
-! xi = (/5.4906921d10,       0.12d0 ,      -2.0402393d0 /)
-! vi = (/-500.d5,        200.d5,       0.d0    /)
+! xi = (/50.d9,       0.12d0 ,      -2.0402393d0 /)
+! vi = (/-60.d5,        000.d5,       0.d0    /)
+
 print*,xi/1d5, "km"
 print*, vi/1d5, "km/s"
 vout = vi
