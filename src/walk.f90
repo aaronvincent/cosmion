@@ -129,7 +129,7 @@ integer :: intcounter,iters
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-4
+relerr = 1.d-6 ! If energy conservation is violated at low cross-sections, lower this tolerance.
 abserr = 1.d-10
 flag = 1
 counter = 0
@@ -302,7 +302,7 @@ else !not full history
     intcounter = intcounter + 1
     call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
     tout = yarr(1)
-    if (intcounter .eq. 1000) then
+    if (mod(intcounter,1000) .eq. 0) then
       print*,"You might be stuck in an infinite loop?"
       print*, "at time ", tout, 'tau', taustart,'going to ',tau,'yarr', yarr
       debug_flag = .true.
@@ -315,6 +315,7 @@ else !not full history
   !work it did and figure out the keplerian bit
   if (outside_flag .ne. 0 .or. r>Rsun) then
 
+    print*,'Outside_flag ',outside_flag, 'tau ', tau, 'yarr',yarr
 
     if (vx .ge. vescape(r)) then
       outside_flag = 2
@@ -339,13 +340,13 @@ else !not full history
        intcounter = intcounter + 1
        call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
        tout = yarr(1)
-       if (intcounter .eq. 1000) then
+       if ((mod(intcounter,1000) .eq. 0)) then
          print*,"You might be stuck in an infinite loop?"
          print*, "at time ", tout, 'tau', taustart,'going to ',tau,'yarr', yarr
          debug_flag = .true.
        end if
      end do
-     ! print*, "after retry: ", (sqrt(vr**2+ell**2/r**2)/sqrt(2.d0*(potential(Rsun)-potential(r)))),"outside_flag ", outside_flag
+     print*, "after retry: ", (sqrt(vr**2+ell**2/r**2)/sqrt(2.d0*(potential(Rsun)-potential(r)))),"outside_flag ", outside_flag
      relerr = relerr*1000. !put error back where it started
      if (flag .ne. 2) then
        print*, "Exited retry integrator with flag = ", flag
@@ -426,7 +427,7 @@ subroutine propagate_to_surface(xin,vin,xout,vout,time,xsamp,vsamp)
   double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnitude
   integer :: intcounter,iters
 
-  relerr = 1d-5
+  relerr = 1d-6
   abserr = 1d-10
 
 if (anPot) then
