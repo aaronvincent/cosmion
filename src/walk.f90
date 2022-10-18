@@ -129,7 +129,7 @@ integer :: intcounter,iters
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-4
+relerr = 1.d-6 ! If energy conservation is violated at low cross-sections, lower this tolerance.
 abserr = 1.d-10
 flag = 1
 counter = 0
@@ -427,7 +427,7 @@ subroutine propagate_to_surface(xin,vin,xout,vout,time,xsamp,vsamp)
   double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnitude
   integer :: intcounter,iters
 
-  relerr = 1d-5
+  relerr = 1d-6
   abserr = 1d-10
 
 if (anPot) then

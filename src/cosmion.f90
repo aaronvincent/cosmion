@@ -16,7 +16,7 @@ character*100 :: massin, sigmain, Nstepsin, FileNameIn
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),xsamp(3),vsamp(3)
 double precision :: r,time,start,finish,weight !the DM coordinates
 double precision :: species_precision
-character*100 :: outfile, reprofile, spindepin, starfile
+character*300 :: outfile, reprofile, spindepin, starfile
 ! logical antemp, andens, anpot
 ! double precision mdm
 integer Nsteps, i,ratio

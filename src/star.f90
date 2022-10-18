@@ -182,14 +182,14 @@ module star
     !now actually read in the file
     open(99,file=filename)
     read(99,*) Msun,Rsun,AtomicNumber(:)
-    print*,"Msun=",Msun
-    print*,"Rsun=",Rsun
-    print*,"Atomic Number:",AtomicNumber
+    !print*,"Msun=",Msun
+    !print*,"Rsun=",Rsun
+    !print*,"Atomic Number:",AtomicNumber
     do i=1,nlines
       read(99,*) tab_mencl(i),tab_r(i), tab_T(i), tab_starrho(i), tab_mfr(i,:)
-      if (i<5 .or. i>nlines-5) then
-        print*,tab_r(i)
-      end if
+      !if (i<5 .or. i>nlines-5) then
+      !  print*,tab_r(i)
+      !end if
     end do
     close(99)
 
