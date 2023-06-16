@@ -52,7 +52,8 @@ module star
       end if
 
     if (anPot .or. SHO_debug) then
-      rhoSHO = 148.9d0 !g/cm^3
+      !rhoSHO = 148.9d0 !g/cm^3
+      rhoSHO = tab_starrho(1) !set the star's density to that at the centre
       Msun = 4./3.*pi*Rsun**3*rhoSHO
       rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*rhoSHO*mdm))
       OmegaSHO = sqrt(4./3.*pi*GN*rhoSHO)
