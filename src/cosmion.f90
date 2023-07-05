@@ -133,7 +133,7 @@ vout = vi
 time = 0.d0
 species = 0
 weight = 1.d10 !this ensures the initial point is not really counted
-write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,weight,species
+write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time, outside_flag,weight,species
 
 ! big loop
 call timestamp
@@ -160,7 +160,7 @@ do i = 1,Nsteps
 !this counts as in the star, but we'll write some random position sampled from this last trajectory
         weight = 1. ! this is wrong
         write(94,*) xsamp(1),xsamp(2),xsamp(3), vsamp(1),vsamp(2),vsamp(3), &
-        vsamp(1),vsamp(2),vsamp(3), time, eoverm,outside_flag,weight,species
+        vsamp(1),vsamp(2),vsamp(3), time, outside_flag,weight,species
 
         xi = x
         vi = v
@@ -189,7 +189,7 @@ do i = 1,Nsteps
         vi = v
     end if
 
-    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm, outside_flag,weight,species
+    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, outside_flag,weight,species
     outside_flag = 0
 
 end do
