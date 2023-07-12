@@ -28,6 +28,14 @@ character*300 :: outfile, reprofile,spindepin, starfile
   INTEGER, DIMENSION(1:8) :: dt_seed
 
 integer Nsteps, i,ratio
+
+ ! ----- variables for portable seed setting -----
+  INTEGER :: i_seed
+  INTEGER, DIMENSION(:), ALLOCATABLE :: a_seed
+  INTEGER, DIMENSION(1:8) :: dt_seed
+
+
+
 debug_flag = .false. !used for debugging (duh)
 
 IF(COMMAND_ARGUMENT_COUNT().NE.6)THEN
