@@ -29,12 +29,6 @@ character*300 :: outfile, reprofile,spindepin, starfile
 
 integer Nsteps, i,ratio
 
- ! ----- variables for portable seed setting -----
-  INTEGER :: i_seed
-  INTEGER, DIMENSION(:), ALLOCATABLE :: a_seed
-  INTEGER, DIMENSION(1:8) :: dt_seed
-
-
 
 debug_flag = .false. !used for debugging (duh)
 
