@@ -1,6 +1,6 @@
 FC=gfortran
 #Note that command line reading does not seem to work with gcc 9. No idea why. 8 and 11 ok
-FOPT= -O3 -fPIC #-std=legacy# -Wall -fbounds-check -g
+FOPT= -O3 -fPIC #–fbacktrace #-std=legacy# -Wall -fbounds-check -g
 # FOPT = -pg
 SRCDIR = ./src
 # NUMDIR = ./numerical
@@ -35,7 +35,7 @@ $(NUMFOBJ): %.o : $(SRCDIR)/%.f90
 	$(FC) $(FOPT) -c  $<
 
 $(MFSHR): %.o : $(SRCDIR)/%.f90
-	$(FC) $(FOPT) -c  $< -fopenmp
+	$(FC) $(FOPT) -c  $< 
 
 $(MAIN): %.o : $(SRCDIR)/%.f90
 	$(FC) $(FOPT) -c  $<

@@ -9,17 +9,27 @@ module star
 ! Units: length = cm, time = s,energy = erg, mass = g
 ! Turns on analytic treatment of the temperature, density, potential
 
-  logical :: anTemp, anDens, anPot,fullHistory, SHO_debug,spinDep
+  logical :: anTemp, anDens, anPot,fullHistory, SHO_debug, spinDep, nucleon
 
   integer nlines
   double precision, allocatable :: tab_mencl(:), tab_starrho(:), tab_mfr(:,:), tab_r(:), tab_vesc(:), tab_dr(:)
   double precision, allocatable :: tab_mfr_oper(:,:), tab_T(:), tab_g(:), tab_atomic(:), vesc_shared_arr(:),tab_phi(:)
   double precision :: rhoSHO,rchi,Rsun,Msun,mdm,OmegaSHO,sigSD,mu
-  double precision, parameter :: c0=2.99792458d10,GN = 6.672d-8,pi=3.141592653, mnuc = 0.938,mnucg = 1.66054d-24
+  double precision, parameter :: c0=2.99792458d10,GN = 6.672d-8,pi=3.141592653, mnuc = 0.938,mnucg = 1.66054d-24, &
+                                 melec = 5.10999e-4, melecg = 9.10938e-28, v0 = 2.20d7, q0elec = 6.408d-19, q0nuc = 6.408d-19 ! 6.408d-5
   double precision, parameter :: hbarc = 1.97d-14,kb = 1.3807d-16,GeV = 1.78266d-24
   !this goes with the Serenelli table format
   double precision, allocatable :: AtomicNumber(:) !29 is is the number from the Serenelli files; if you have fewer it shouldn't matter
-  integer :: outside_flag, species
+  ! The densities of the different elements is useful to calculate the density of electrons at each radius of the star according to a given precision
+  integer, allocatable :: ElectronNumber(:) !Table in which the ith element is the number of electrons corresponding to the atom of the ith element of the table AtomicNumber
+  integer :: outside_flag, species,crossSection,particle
+  integer kepflag ! mark of the devil, for debugging
+  !outside_flag values:
+  ! 0: inside the star
+  ! 1: trajectory will leave the star before rescattering
+  ! 2: Particle will escape 
+  ! -1: this is used to track particles leaving in the propagate_to_surf subroutine. Should never be seen in output
+
   integer, allocatable :: elements(:)
 
 !functions
@@ -27,20 +37,27 @@ module star
 
   contains
 
-  subroutine init_star(anTempIn,anDensIn,anPotIn,mdm_in,sigSD_in,filename)
+  subroutine init_star(anTempIn,anDensIn,anPotIn,mdm_in,sigSD_in,particle_in,crossSection_in,filename)
     logical, intent(in) :: anTempIn,anDensIn,anPotIn
     double precision, intent(in) :: mdm_in,sigSD_in
+    integer, intent(in) :: crossSection_in, particle_in
     character*300 :: filename
 
     print*,"Initializing star"
 
     mdm = mdm_in
     sigSD = sigSD_in
+    particle = particle_in
+    crossSection = crossSection_in
     mu = mdm/mnucg !this needs to be fixed for > 1 isotope
     outside_flag = 0
 
+    ElectronNumber  = (/ 1, 2, 2, 6, 6, 7, 7, 8, 8, &
+                        8, 10, 11, 12, 13, 14, 15, 16, 17, &
+                        18, 19, 20, 21, 22, 23, 24, &
+                        25, 26, 27, 28/)
 
-!if anything is not analytic, load stellar data
+    !if anything is not analytic, load stellar data
     if ((.not. anTemp) .or. (.not. anDens) .or. (.not. anPot)) then
         call get_stellar_params(filename,nlines)
       else
@@ -59,13 +76,35 @@ module star
     else
       rchi = sqrt(3.*kb*temperature(0.d0)/(2.*pi*GN*tab_starrho(1)*mdm))
     end if
-    print*,"initialized star"
+    print*,"Initialized star"
 
   end subroutine
 
+  !Get number density of electrons at radius r
+    function ndensityelec(R)
+      double precision ndensityelec
+      double precision, intent(in):: R
+      double precision :: nelec, nnuc
+      integer :: iso
+      if (anDens) then
+        nelec = rhoSHO/melecg
+      else
+        nelec = 0
+        do iso = 1, size(AtomicNumber)
+          if (R/Rsun .lt. tab_r(1)) then
+            nnuc = tab_starrho(1)*tab_mfr(1,iso)/AtomicNumber(iso)/mnucg
+          else
+            call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R/Rsun,nnuc)
+          end if
+          nelec = nelec + nnuc * ElectronNumber(iso)
+        end do
+      end if
+      ndensityelec = nelec
+    end function
+
   !Get number density of scatterers at radius r
-    function ndensity(R,iso)
-      double precision ndensity
+    function ndensitynuc(R,iso)
+      double precision ndensitynuc
       double precision, intent(in):: R
       double precision :: nnuc
       integer, intent(in) :: iso
@@ -78,7 +117,7 @@ module star
           call interp1(tab_r,tab_starrho*tab_mfr(:,iso)/AtomicNumber(iso)/mnucg,nlines,R/Rsun,nnuc)
         end if
       end if
-      ndensity = nnuc
+      ndensitynuc = nnuc
     end function
 
     function dndr(R,iso)
@@ -290,6 +329,7 @@ module star
   end subroutine interp1
 
 
+
   subroutine select_species(precision)
     double precision, intent(in) :: precision
     double precision :: numDens,sigma,probs(size(AtomicNumber)),probsTot,pdf
@@ -306,7 +346,7 @@ module star
         numDens = 0.d0
         do j = 1,points
           pdf = (1.*j/points)**2*exp(-(Rsun*j/points/rchi)**2) ! weight for this radius
-          numDens = numDens + ndensity(Rsun*j/points,i) * pdf
+          numDens = numDens + ndensitynuc(Rsun*j/points,i) * pdf
         end do
         numDens = numDens/points
         sigma = sigSD * AtomicNumber(i)**4 * ((mdm+mnucg)/(mdm+AtomicNumber(i)*mnucg))**2
@@ -322,5 +362,6 @@ module star
       end do
     end if
   end subroutine
+
 
 end module
