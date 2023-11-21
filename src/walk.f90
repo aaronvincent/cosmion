@@ -168,7 +168,7 @@ integer :: intcounter,iters
 
 time = 0.d0
 tout = 0.d0
-relerr = 1.d-6 ! If energy conservation is violated at low cross-sections, lower this tolerance.
+relerr = 1.d-8 ! If energy conservation is violated at low cross-sections, lower this tolerance.
 abserr = 1.d-10
 flag = 1
 counter = 0
@@ -664,11 +664,15 @@ subroutine collide(x,vin,vout)
   integer niso
   double precision, intent(in) :: x(3),vin(3)
   double precision, intent(out) :: vout(3)
-  double precision :: v(3),velec(3),uelec,s(3),vnuc(3),unuc,T,r,vcm,a,b, pres
+  double precision :: v(3),velec(3),uelec,s(3),vnuc(3),vnucprime(3)
+  double precision :: theta_nuc,ctnuc,stnuc,phi_nuc,unuc,T,r,vcm,a,b,c, pres,uT,speed,pdf
   double precision :: costheta, theta, theta1, theta2, phi,random_normal !outgoing angles in COM frame
   double precision, allocatable :: omegas(:),ratio(:),cumsum(:)
+  double precision :: e1(3),e2(3),e3(3),auxvec(3),yaux,xaux,zaux,beta
   double precision :: tot
+  double precision :: xi1,xi2,xi3,xi4,xi5,xi6
   integer :: i,len
+  logical accept
   
   if (nucleon) then
     ! 1) select a species to collide with
@@ -698,27 +702,139 @@ subroutine collide(x,vin,vout)
   end if
 
   !a little different from Hannah's method: we draw 3 nuclear velocities from a local MB distribution
+  !which is completely wrong :)
+!for testing
+  ! r = 0.5*Rsun
+!  v =  (/2.6153145507d0,        -2.6153145507d0,     -2.6153145507d0   /)
   v = vin
+  speed = sqrt(sum(v**2))
   r = sqrt(sum(x**2))
   T = temperature(r)
-  
+
   if (nucleon) then
-    vnuc(1) = Sqrt(kB*T/(AtomicNumber(niso)*mnucg))*random_normal()
-    vnuc(2) = Sqrt(kB*T/(AtomicNumber(niso)*mnucg))*random_normal()
-    vnuc(3) = Sqrt(kB*T/(AtomicNumber(niso)*mnucg))*random_normal()
+
+    beta = Sqrt(AtomicNumber(niso)*mnucg/(2.d0*kB*T))
+
+  else
+    beta = Sqrt(melecg/(2.d0*kB*T))
+  end if
+
+!!!!!!below is the standard 2d rejection sampler
+!  uT = Sqrt((kB*T)/(AtomicNumber(niso)*mnucg))
+!  accept = .false.
+!   do while (accept .eqv. .false.)
+!   ! randomly pick a speed
+!   call random_number(a)
+!   a = a*5.d0*uT !get high in the tail
+!   !randomly pick an angle
+!   call random_number(b)
+!   b = b*2.d0 -1.d0 !cos theta
+!     pdf = a**2*sqrt(speed**2+a**2 - 2.d0*a*speed*b)*exp(-a**2/2.d0/uT**2)
+!   call random_number(c)
+!   !based on some magic. Must be changed if v^n or q^n
+!   c = c*uT**3*(0.8*speed/uT+1.15) !this ensures b is between 0 and the max of the distribution
+!   ! print*," Rsun ", rsun, " rchi ", rchi,  " a ", a, ' b ', bx
+!   ! print*,niso, uT,a,b, c, pdf
+  
+!   if (c .lt. pdf) then
+!     accept = .true.
+!     theta_nuc = acos(b)
+!   end if
+!   end do
+!  !now choose an azimuthal angle
+!   call random_number(phi_nuc)
+!   phi_nuc = phi_nuc*2.d0 * pi
+!   ctnuc = cos(theta_nuc)
+
+! !now rotate back to the star's frame
+! ! First construct the coordinate system in the DM frame
+! e3 = v/speed
+! e1(1) = 0.d0
+! e1(2) = -v(3)/v(2)
+! e1(3) = 1.d0
+! e1 = e1/sqrt(sum(e1**2))
+! call cross(e3,e1,e2)  
+
+! ! project into star frame
+! vnuc = a*(sin(theta_nuc)*cos(phi_nuc)*e1 + sin(theta_nuc)*sin(phi_nuc)*e2 + b*e3)
+
+! open(92,file = "vvals.dat",access='append')
+! write(92,*) a, b, theta_nuc, phi_nuc, vnuc
+! print*,"e1", e1
+! print*,"e2", e2
+! print*,"e3", e3
+! print*, e2
+! close(92)
+! print*,e1,e2,e3
+
+!Sample nucleon to collide with
+!Romano & Walsh 2018
+!https://www.sciencedirect.com/science/article/pii/S030645491730498X
+!note typo, pointed out below
+yaux = beta*speed
+
+accept = .false.
+
+do while (accept .eqv. .false.)
+
+  call random_number(xi1)
+  call random_number(xi2)
+  call random_number(xi3)
+  call random_number(xi4)
+  call random_number(xi5)
+  call random_number(xi6)
+  ! RW call this mu
+  ctnuc = 2.d0*xi1-1.d0
+  
+  if (xi2 .lt. 2.d0/(sqrt(pi)*yaux+2.d0)) then
+    zaux = -log(xi3*xi4)
+  else
+    zaux = -log(xi3)-(cos(pi/2.d0*xi4))**2*log(xi5)
+  end if
+  xaux = sqrt(zaux)
+  if (xi6 .lt. sqrt(yaux**2+zaux-2.d0*xaux*yaux*ctnuc)/(yaux+xaux)) then !note paper was missing the sqrt
+  !great success. a is now the nucleus speed
+  a = xaux/beta
+  accept = .true.
+  end if
+
+  end do
+
+!sample azimuthal angle
+call random_number(b)
+phi_nuc = b*2.d0*pi
+
+!now rotate back to the star's frame
+! First construct the coordinate system in the DM frame
+e3 = v/speed
+
+e1(1) = 0.d0
+e1(2) = -v(3)/v(2)
+e1(3) = 1.d0
+e1 = e1/sqrt(sum(e1**2))
+call cross(e3,e1,e2)  
+
+stnuc = sqrt(1.d0-ctnuc**2)
+
+! ! project into star frame
+vnuc = a*(stnuc*cos(phi_nuc)*e1 + stnuc*sin(phi_nuc)*e2 + ctnuc*e3)
+
+
+!  open(92,file = "vvals.dat",access='append')
+! write(92,*) beta, a, ctnuc,phi_nuc,  vnuc
+! close(92)
 
     ! 2) Boost to CM frame
+if (nucleon) then
+
     s = (mdm*v + AtomicNumber(niso)*mnucg*vnuc)/(mdm+AtomicNumber(niso)*mnucg)
     
   else
-    velec(1) = Sqrt(kB*T/melecg)*random_normal()
-    velec(2) = Sqrt(kB*T/melecg)*random_normal()
-    velec(3) = Sqrt(kB*T/melecg)*random_normal()
-    
-    ! Boost to CM frame
-    s = (mdm*v + melecg*velec)/(mdm+melecg)
+     s = (mdm*v + melecg*velec)/(mdm+melecg)
     
   end if
+
+
   vcm = sqrt(sum((v-s)**2)) !velocity in CM frame
 
   ! Scattering is isotropic, so the new angle does not depend on the old one
@@ -764,8 +880,8 @@ subroutine collide(x,vin,vout)
 
   call random_number(b)
   phi = 2.*pi*b
-  vout(1) = vcm*sin(a)*sin(phi)
-  vout(2) = vcm*sin(a)*cos(phi)
+  vout(1) = vcm*sin(theta)*sin(phi)
+  vout(2) = vcm*sin(theta)*cos(phi)
   vout(3) = vcm*costheta
   !boost back to star frame
 
@@ -882,6 +998,8 @@ open(92,file = "intvals.dat",access='append')
 write(92,*)tau, time, r, potential(r), vr, eoverm, ell,.5*(vr**2+ell**2/r**2)
 close(92)
 end if
+
+
 
 
     if (r .ge. Rsun) then
