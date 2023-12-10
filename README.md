@@ -4,7 +4,7 @@
 
 If you have a working modern Fortran compiler, cosmion should work (almost) out of the box. In the main directory, type
 
-`bash runandcrash.sh`
+`bash runandtest.sh`
 
 This should compile the main program (cosmion) and run a test example. Have a look in the file to see the commands that it uses. To rerun the code once you have compiled, you can write e.g.
 
