@@ -227,6 +227,9 @@ do i = 1,Nsteps
         if (anpot) then
         call propagate_to_surface(xi,vi,x,v,time)
         else 
+        !these are for testing
+        xsamp = xi
+        vsamp = vi
         !if in fully numeric mode, propagate to surface needs to be called until the outside flag is triggered again
         !if v < 0, we will propagate the particle to some random optical depths until it turns around and v > 0, then shoot it straight at the surface
         !we'll record positions, with zero momentum transfer (because we are not calling collision) all along the way
@@ -239,7 +242,7 @@ do i = 1,Nsteps
         
           call propagate_to_surface(xi,vi,x,v,time)          
           do while (outside_flag ==-1 ) 
-          print*,"retrying"
+          ! print*,"retrying"
             call propagate_to_surface(xi,vi,x,v,time) !this should work because we're drawing a new random number          
           end do
           
@@ -277,6 +280,16 @@ do i = 1,Nsteps
         ! print*,"calling keplerian at i ", i
         ! print*," before keplerian, xi = ", x, "vi = ", vi
           call keplerian_rad(xi,vi,x,v,time)
+          if (time .ne. time) then
+            print*, 'time is NaN. params: '
+            print*,xi,vi,x,v,time
+            print*,'vesc here is ', vescape(sqrt(sum(xi**2)))
+            print*, 'positions before the mess'
+            print*,xsamp, sqrt(sum(xsamp**2))/Rsun
+            print*, 'velocities before the mess'
+            print*,vsamp, sqrt(sum(vsamp**2))/vescape(sqrt(sum(xsamp**2)))
+            stop
+            end if
         end if
         !print*,"r after keplerian ",sqrt(sum(x**2)), "v ", v
         outside_flag = 1

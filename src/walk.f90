@@ -275,7 +275,7 @@ call cross(xin,vin,ellvec)
   yarr(1) = 0.d0 !initial time
   yarr(2) = r
 
-  r  = sqrt(sum(xin**2))
+  ! r  = sqrt(sum(xin**2))
   vx = sqrt(sum(vin**2))
   vr = sum(vin*xin)/r
   yarr(3) = vr !velocity in R direction
@@ -305,10 +305,10 @@ intcounter = 0
   end do
 
 !!! Main propagation done !!!
-  r = yarr(2)
+  ! r = yarr(2) <- this was causing problems
   !if at any point the integrator realized it had left the star, we ditch any
   !work it did and figure out the keplerian bit
-  if (outside_flag .ne. 0 .or. r .ge. Rsun) then
+  if (outside_flag .ne. 0 .or. yarr(2) .ge. Rsun) then
   ! print*,"outside flag" 
   outside_flag = 1
 
@@ -507,6 +507,12 @@ if (anPot) then
       stop
     end if
 
+    if (sqrt(sum(vin**2)) .ge. vescape(r)) then 
+      print*, "v: ",sum(vin**2) , ", vescape: ", vescape(r)
+      print*,'should have escaped'
+      stop
+      end if
+
     ! print*, "x", xin
     ! print*, "v", vin
     ! call pets_to_surf2d(r,yarr,yparr)
@@ -544,7 +550,7 @@ if (anPot) then
       yarr(2) = r
 
       ! r  = sqrt(sum(xin**2))
-      ! vx = sqrt(sum(vin**2))
+      vx = sqrt(sum(vin**2))
       ! vr = sum(vin*xin)/r
       yarr(3) = vr !velocity in R direction
 
@@ -552,6 +558,8 @@ if (anPot) then
     !energy over m is conserved
     !This is stored in initial conditions module since it is required for some orbit integration
       eoverm = .5*vx**2  + potential(r)
+
+    ! print*, "before propagagation, r = ", r/Rsun, "vr = ", vr, 'ell = ', ell, 'v = ', sqrt(sum(vin**2)),'phi = ', potential(r)
 
     intcounter = 0
 
@@ -589,15 +597,20 @@ if (anPot) then
       outside_flag = 0
       end if
       vr  = sum(vout*xout)/r
-      ! print*, "after propagagation, r = ", r/Rsun, "vr = ", vr
+      ! print*, "after propagagation, r = ", r/Rsun, "vr = ", vr, 'ell = ', ell, 'v = ', sqrt(sum(vout**2)), 'phi = ', potential(r)
       
       !we've gone too far; we want to stop when v > 0 but not outside the star yet
-      if (outside_flag .eq. 1) then
+      if ((outside_flag .eq. 1) .or. (r .ge. Rsun)) then
 
       outside_flag = -1
-      print*, "had to retry"
+      if (debug_flag .eqv. .true.) then
+      ! print*, "had to retry"
+      end if
       return
       end if
+
+      ! print*,' E/M before/after :', eoverm,(.5*sum(vout**2)+potential(r)), eoverm/(.5*sum(vout**2)+potential(r))
+
         !   !we need to integrate until vr changes sign, then integrate up to r
 
 
