@@ -677,7 +677,7 @@ subroutine collide(x,vin,vout)
   integer niso
   double precision, intent(in) :: x(3),vin(3)
   double precision, intent(out) :: vout(3)
-  double precision :: v(3),velec(3),uelec,s(3),vnuc(3),vnucprime(3)
+  double precision :: v(3),s(3),vnuc(3),vnucprime(3)
   double precision :: theta_nuc,ctnuc,stnuc,phi_nuc,unuc,T,r,vcm,a,b,c, pres,uT,speed,pdf
   double precision :: costheta, theta, theta1, theta2, phi,random_normal !outgoing angles in COM frame
   double precision, allocatable :: omegas(:),ratio(:),cumsum(:)
@@ -729,7 +729,10 @@ subroutine collide(x,vin,vout)
     beta = Sqrt(AtomicNumber(niso)*mnucg/(2.d0*kB*T))
 
   else
+    
     beta = Sqrt(melecg/(2.d0*kB*T))
+  
+  
   end if
 
 !!!!!!below is the standard 2d rejection sampler
@@ -832,23 +835,26 @@ stnuc = sqrt(1.d0-ctnuc**2)
 ! ! project into star frame
 vnuc = a*(stnuc*cos(phi_nuc)*e1 + stnuc*sin(phi_nuc)*e2 + ctnuc*e3)
 
+! print*,'Vnuc = ', vnuc
 
 !  open(92,file = "vvals.dat",access='append')
 ! write(92,*) beta, a, ctnuc,phi_nuc,  vnuc
 ! close(92)
 
     ! 2) Boost to CM frame
+! print*, nucleon
 if (nucleon) then
 
     s = (mdm*v + AtomicNumber(niso)*mnucg*vnuc)/(mdm+AtomicNumber(niso)*mnucg)
     
   else
-     s = (mdm*v + melecg*velec)/(mdm+melecg)
-    
+     s = (mdm*v + melecg*vnuc)/(mdm+melecg)
+     
   end if
 
 
   vcm = sqrt(sum((v-s)**2)) !velocity in CM frame
+
 
   ! Scattering is isotropic, so the new angle does not depend on the old one
   call random_number(a)
@@ -900,6 +906,7 @@ if (nucleon) then
 
   vout = vout + s
 
+  ! print*, "vout = ", vout
 
 end subroutine collide
 
