@@ -8,7 +8,7 @@ If you have gfortran (installed with gcc), cosmion should work (almost) out of t
 
 This should compile the main program (cosmion) and run a test example. Have a look in the file to see the commands that it uses. To rerun the code once you have compiled, you can write e.g.
 
-`./cosmion.x 5. 1.d-37 100000 "positions.dat" nucleonSD const'
+`./cosmion.x 5. 1.d-37 100000 "positions.dat" nucleonSD const`
 
 In order the arguments are 
 
