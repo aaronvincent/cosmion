@@ -2,13 +2,13 @@
 
 ### Quickstart
 
-If you have a working modern Fortran compiler, cosmion should work (almost) out of the box. In the main directory, type
+If you have gfortran (installed with gcc), cosmion should work (almost) out of the box. In the main directory, type
 
 `bash runandtest.sh`
 
 This should compile the main program (cosmion) and run a test example. Have a look in the file to see the commands that it uses. To rerun the code once you have compiled, you can write e.g.
 
-`./cosmion.x 5. 1.d-37 100000 "positions.dat" SD'
+`./cosmion.x 5. 1.d-37 100000 "positions.dat" nucleonSD const'
 
 In order the arguments are 
 
@@ -16,7 +16,8 @@ In order the arguments are
 2) DM-nucleon cross section (cm^2)
 3) Number of collisions
 4) Output file name
-5) SI (spin-independent) or SD (spin-dependent)
+5) nucleonSI (spin-independent) or nucleonSD (spin-dependent). electron is an option, but has not been fully benchmarked yet
+6) const (constant cross section), or v2, v4, q2, q4, if you want velocity or momentum-dependent interactions
 
 The output will be stored in the positions.dat file. Columns in this file are: 
 
@@ -32,7 +33,7 @@ The output will be stored in the positions.dat file. Columns in this file are:
 10) The time between this collision and the previous collision (s).
 11) A flag indicating whether the particle has left the star. If the flag is 0, the particle has collided within the star. If the flag is 1, this row records the properties of the particle as enters the surface of the star. If the flag is 2, the particle has escaped the star's gravitational potential, and this row records the initial properties of a newly spawned particle. If the flag is 3, this row records the properties of the particle as exits the surface of the star.
 12) The rate a which the particle will collide at this radius and speed (s^-1).
-13) The number of the nuclear species that the particle collided with, as listed in the stellar data file. A value of 0 indicates no collision.
+
 
 Note that the first row indicates the initial properties of the spawned particle.
 
