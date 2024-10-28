@@ -1,7 +1,8 @@
+
 ! Cosmion takes 6 arguments and produces a formatted output text file
 program cosmion
 use star
-use init_conds ! used to check energy conservation. Can remove if not needed
+use init_conds 
 implicit none
 interface
   subroutine omegaelec(xin,vin,omega_out)
@@ -129,9 +130,7 @@ mdm = mdm*GeV
 
 
 !masses in g
-! mdm = 5.d0*GeV
-! sigsd = 1.d-37 !cm^2
-! Nsteps =5e5
+
 species_precision = 1.d-2 ! A precision of 0 uses all species for collisions
 
 !set up the star
@@ -178,10 +177,10 @@ if (nucleon) then
 
 open(94,file = outfile)
 
-kepflag = 0 !get rid of this noise later
+kepflag = 0 
 
 call spawn(xi,vi)
-! spawining at a specific place, for testing
+! Uncomment the folloiwng and adjustif you want to spawn at a specific place, for testing
 ! xi = (/4576709851.6707411d0,       -0.d0 ,      -0.d0 /)
 ! vi = (/-6068728.6153145507d0,        96408852.454135373d0,       0.d0     /)
 ! xi = (/50.d9,       0.12d0 ,      -2.0402393d0 /)
@@ -222,10 +221,8 @@ do i = 1,Nsteps
     else if (outside_flag == 1) then
     
 
-        ! outside_flag = 3 !this indicates that the weights need to be time/time_total. You need to include this weighting in your analysis script since it can't be done on the fly
-!travel to the surface, making friends along the way
         if (anpot) then
-        call propagate_to_surface(xi,vi,x,v,time)
+          call propagate_to_surface(xi,vi,x,v,time)
         else 
         !these are for testing
         xsamp = xi
@@ -243,7 +240,7 @@ do i = 1,Nsteps
           call propagate_to_surface(xi,vi,x,v,time)          
           do while (outside_flag ==-1 ) 
           ! print*,"retrying"
-            call propagate_to_surface(xi,vi,x,v,time) !this should work because we're drawing a new random number          
+            call propagate_to_surface(xi,vi,x,v,time) 
           end do
           
           if (.not. nucleon) then
@@ -319,13 +316,6 @@ call timestamp
 call cpu_time(finish)
 Print*, Nsteps, "Collisions perfomed in: ",finish-start, " seconds (", (finish-start)/dble(Nsteps), " sec/coll.)"
 
-! call propagate()
-! call collide()
-
-! end do
-! Now we reprocess our file
-! ratio = 10
-! call reprocess(Nsteps,times,ratio,outfile,reprofile)
 
 
 end program
