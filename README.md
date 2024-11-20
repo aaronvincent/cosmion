@@ -16,7 +16,7 @@ In order the arguments are
 2) DM-nucleon cross section (cm^2)
 3) Number of collisions
 4) Output file name
-5) nucleonSI (spin-independent) or nucleonSD (spin-dependent). electron is an option, but has not been fully benchmarked yet
+5) nucleonSI (spin-independent) or nucleonSD (spin-dependent). electron is an option, but has not been fully tested yet. Use at your own risk
 6) const (constant cross section), or v2, v4, q2, q4, if you want velocity or momentum-dependent interactions
 
 The output will be stored in the positions.dat file. Columns in this file are: 
