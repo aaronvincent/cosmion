@@ -192,7 +192,7 @@ print*, vi/1d5, "km/s"
 vout = vi
 time = 0.d0
 weight = 1.d10 !this ensures the initial point is not really counted
-write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time, eoverm,outside_flag,weight
+write(94,*) xi(1),xi(2),xi(3), vi(1),vi(2),vi(3), vout(1),vout(2),vout(3), time,outside_flag,weight
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -307,7 +307,7 @@ do i = 1,Nsteps
         vi = v
     end if
 
-    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, eoverm, outside_flag,weight
+    write(94,*) x(1),x(2),x(3), v(1),v(2),v(3), vout(1),vout(2),vout(3), time, outside_flag,weight
     outside_flag = 0
 
 end do
