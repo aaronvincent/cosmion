@@ -95,10 +95,6 @@ subroutine spawn(x,v)
   end if
   
 
-  ! Throws the particle out of the star in one step, for testing
-  !x = (/37d9,37d9,37d9/)
-  !v = (/0d7,54d7,32d7/)
-
   print*, "Spawned walker"
 
 end subroutine spawn
@@ -131,10 +127,7 @@ interface
     double precision, intent(out) :: yp(3)
   end subroutine
 
-  ! subroutine pets_to_turning(t,y,yp) !integrand for propagation to surface without collision
-  !   double precision, intent(in) :: t,y(3)
-  !   double precision, intent(out) :: yp(3)
-  ! end subroutine
+ 
   function turnaroundEnergy(rin) result(eout)
   ! used to find turnaround for inward-bound orbits
     implicit none
@@ -157,7 +150,6 @@ double precision :: T,n,mfp,dt
 
 
 double precision :: phase_r,amplitude_r,cosine
-! double precision :: phase_i(3), amplitude_i(3) !initial conditions now in module
 !for the rkf45
 integer :: neqn, flag,counter,fcounter
 double precision :: y, yp, time, tout, relerr, abserr
@@ -181,8 +173,7 @@ counter = 0
 !1) draw an optical depth
 call random_number(a)
 tau = -log(1.d0-a)
-! tau = 5.
-! print*,'WARNING Optical depth is hardcoded in; Walk.f90 L95'
+
 
 ! 2) Integrate the time it takes to reach that optical depth
 
@@ -194,9 +185,6 @@ vx = sqrt(sum(vin**2))
 ! I'm gonna do what you might call a pro-gamer move
 ! this integrates t until we reach optical depth tau
 
-! print*,'time ', tout
-! end do
-! print*," tau = ", tau, " y = ", y, ' tol ', abs(y-tau)/tau, ' tout ', time
 
 y = 0.d0
 
@@ -228,12 +216,7 @@ if (anPot) then
   xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
   xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
 
-  ! vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
-  ! vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
-  ! vout(3) = -amplitude_i(3)*OmegaSHO*sin(OmegaSHO*tout+phase_i(3))
-  ! print*,'xout ', xout
-
-
+  
   r = sqrt(sum(xout**2))
 
   ! This checks if the particle left the star during the integration.
@@ -246,9 +229,6 @@ if (anPot) then
     end if
   end if
 
-  ! xout(1) =  amplitude_i(1)*cos(OmegaSHO*tout+phase_i(1))
-  ! xout(2) =  amplitude_i(2)*cos(OmegaSHO*tout+phase_i(2))
-  ! xout(3) =  amplitude_i(3)*cos(OmegaSHO*tout+phase_i(3))
 
   vout(1) = -amplitude_i(1)*OmegaSHO*sin(OmegaSHO*tout+phase_i(1))
   vout(2) = -amplitude_i(2)*OmegaSHO*sin(OmegaSHO*tout+phase_i(2))
@@ -292,7 +272,7 @@ intcounter = 0
 
   call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
   tout = yarr(1)
-  !if the integrator didn't finish, make it
+  !if the integrator didn't finish, make it finish
   do while (flag .eq. 4)
     intcounter = intcounter + 1
     call rkf45full (pets_sph,3, yarr, yparr, taustart,tau, relerr, abserr, flag )
@@ -372,7 +352,6 @@ else !outside flag
   vout(2) = ell/xout(1) ! stick tangential velocity in the y direction
   vout(3) = 0.d0
 end if !outside flag != 0
-
 
 
 
@@ -603,9 +582,9 @@ if (anPot) then
       if ((outside_flag .eq. 1) .or. (r .ge. Rsun)) then
 
       outside_flag = -1
-      if (debug_flag .eqv. .true.) then
-      ! print*, "had to retry"
-      end if
+      ! if (debug_flag .eqv. .true.) then
+      ! ! print*, "had to retry"
+      ! end if
       return
       end if
 
@@ -714,11 +693,7 @@ subroutine collide(x,vin,vout)
     species = niso
   end if
 
-  !a little different from Hannah's method: we draw 3 nuclear velocities from a local MB distribution
-  !which is completely wrong :)
-!for testing
-  ! r = 0.5*Rsun
-!  v =  (/2.6153145507d0,        -2.6153145507d0,     -2.6153145507d0   /)
+
   v = vin
   speed = sqrt(sum(v**2))
   r = sqrt(sum(x**2))

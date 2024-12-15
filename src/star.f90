@@ -1,13 +1,15 @@
 
 !module with all the star properties
 !also contains DM mass and cross section
+! Units: length = cm, time = s,energy = erg, mass = g
+
 module star
 
   implicit none
 
 
-! Units: length = cm, time = s,energy = erg, mass = g
-! Turns on analytic treatment of the temperature, density, potential
+
+
 
   logical :: anTemp, anDens, anPot,fullHistory, SHO_debug, spinDep, nucleon
 

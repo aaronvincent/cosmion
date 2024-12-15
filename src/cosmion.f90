@@ -38,6 +38,7 @@ IF(COMMAND_ARGUMENT_COUNT().NE.6)THEN
   STOP
 ENDIF
 
+!location of the stellar data file
 starfile = "data/struct_b16_agss09_modified.dat"
 
 !set parameters
@@ -261,7 +262,7 @@ do i = 1,Nsteps
   ! call omega(xi,vi,weight)
           vout = v
   ! !this counts as in the star, but we'll write some random position sampled from this last trajectory
-  !         weight = 1. ! this is wrong
+
   !         write(94,*) xsamp(1),xsamp(2),xsamp(3), vsamp(1),vsamp(2),vsamp(3), &
   !         vsamp(1),vsamp(2),vsamp(3), time, eoverm,outside_flag,weight
 
