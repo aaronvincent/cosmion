@@ -229,9 +229,6 @@ module star
     !print*,"Atomic Number:",AtomicNumber
     do i=1,nlines
       read(99,*) tab_mencl(i),tab_r(i), tab_T(i), tab_starrho(i), tab_mfr(i,:)
-      !if (i<5 .or. i>nlines-5) then
-      !  print*,tab_r(i)
-      !end if
     end do
     close(99)
 
@@ -293,7 +290,6 @@ module star
       tab_phi(j) = tab_phi(j+1) + GMoverR*(tab_r(j)-tab_r(j+1))/2.*(tab_mencl(j)/tab_r(j)**2+tab_mencl(j+1)/tab_r(j+1)**2)
       tab_vesc(j) = sqrt(-2.d0*tab_phi(j)) !escape velocity in cm/s
       tab_dr(j) = -tab_r(j)+tab_r(j+1) !while we're here, populate dr
-      ! tab_g(j) = -(-phi(j)+phi(j+1))/tab_dr(j)
       tab_g(i) = -GMoverR*tab_mencl(i)/tab_r(i)**2/Rsun
     end do
     ! tab_g(nlines) = tab_g(nlines-1)
@@ -343,7 +339,7 @@ module star
     else
       ! Compute the average number density times the cross section for each element,
       ! weighted by its estimated radial position.
-      points = 1e3 ! Number of radial points used to construct averages.
+      points = 1e5 ! Number of radial points used to construct averages.
       pdf = 0.d0
       do i=1,size(AtomicNumber)
         numDens = 0.d0

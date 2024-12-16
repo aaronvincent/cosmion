@@ -79,15 +79,15 @@ print*, "Initializing with :"
 print*, "m = ", mdm, " GeV"
 print*, "sigma = ", sigsd, " cm^2"
 
-IF(ParticleIn == 'nucleonSD')THEN
+IF(ParticleIn == 'nucleonSD')THEN ! spin-dependent collisions with nuclei (only hydrogen)
   nucleon = .true.
   spinDep = .true.
   print*, "Collision with Nucleons, Spin-Dependent"
-ELSEIF(ParticleIn == 'nucleonSI')THEN
+ELSEIF(ParticleIn == 'nucleonSI')THEN ! spin-independent collisions with all nuclei
   nucleon = .true.
   spinDep = .false.
   print*, "Collision with Nucleons, Spin-Independent"
-ELSEIF(ParticleIn == 'electron')THEN
+ELSEIF(ParticleIn == 'electron')THEN ! collisions with electrons
   nucleon = .false.
   spinDep = .false.
   print*, "Collision with Electrons"
@@ -144,9 +144,6 @@ anDens = .false.
 !treat potential as SHO and use analytic trajectory expressions for x, v
 !This is an implementation of the original Banks et al Simulations
 anPot = .false.
-!Spin-dependent? (true = only hydrogen)
-!if false, species_precision above will determine how many isotopes to use
-! spinDep = .false.
 
 !SHO_debug overrides the tabulated phi(r) to provide SHO potential
 !for testing of phi(r) and comparison with anPot. Don't set to true for realistic sims
@@ -181,7 +178,7 @@ open(94,file = outfile)
 kepflag = 0 
 
 call spawn(xi,vi)
-! Uncomment the folloiwng and adjustif you want to spawn at a specific place, for testing
+! Uncomment the folloiwng and adjust if you want to spawn at a specific place, for testing
 ! xi = (/4576709851.6707411d0,       -0.d0 ,      -0.d0 /)
 ! vi = (/-6068728.6153145507d0,        96408852.454135373d0,       0.d0     /)
 ! xi = (/50.d9,       0.12d0 ,      -2.0402393d0 /)
@@ -250,12 +247,11 @@ do i = 1,Nsteps
             call omeganuc(xi,vi,weight)
           end if
           write(94,*) x(1),x(2),x(3), vi(1),vi(2),vi(3), &
-          v(1),v(2),v(3), time, eoverm,outside_flag,weight
+          v(1),v(2),v(3), time, outside_flag,weight
           vi = v
           xi = x
         end do
 
-        ! call propagate_to_surface(xi,vi,x,v,time)
 
   ! We've found that we are leaving the star. Current position is now at the surface. We need to record the time that took though
   ! it would also help to take a sample from that path
@@ -264,7 +260,7 @@ do i = 1,Nsteps
   ! !this counts as in the star, but we'll write some random position sampled from this last trajectory
 
   !         write(94,*) xsamp(1),xsamp(2),xsamp(3), vsamp(1),vsamp(2),vsamp(3), &
-  !         vsamp(1),vsamp(2),vsamp(3), time, eoverm,outside_flag,weight
+  !         vsamp(1),vsamp(2),vsamp(3), time, outside_flag,weight
 
         xi = x
         vi = v
