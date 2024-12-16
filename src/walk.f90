@@ -191,7 +191,7 @@ y = 0.d0
 if (anPot) then
   !first get the initial conditions for this step
   phase_i = atan(-vin,OmegaSHO*xin)
-  amplitude_i = xin/cos(phase_i)
+  amplitude_i = sqrt(vin**2. / OmegaSHO**2. + xin**2.)
 
   call rkf45 (pets, time, yp, y,tau, relerr, abserr, flag )
   tout = time
@@ -285,7 +285,6 @@ intcounter = 0
   end do
 
 !!! Main propagation done !!!
-  ! r = yarr(2) <- this was causing problems
   !if at any point the integrator realized it had left the star, we ditch any
   !work it did and figure out the keplerian bit
   if (outside_flag .ne. 0 .or. yarr(2) .ge. Rsun) then
@@ -415,7 +414,7 @@ subroutine propagate_to_surface(xin,vin,xout,vout,time)
   double precision :: ellvec(3) !angular momentum over m ( = r x v) and its magnitude
   integer :: intcounter,iters
 
-  relerr = 1d-6
+  relerr = 1d-8
   abserr = 1d-10
 
 
@@ -502,7 +501,7 @@ if (anPot) then
 
       time = 0.d0
       tout = 0.d0
-      relerr = 1.d-6 ! If energy conservation is violated at low cross-sections, lower this tolerance.
+      relerr = 1.d-8 ! If energy conservation is violated at low cross-sections, lower this tolerance.
       abserr = 1.d-10
       flag = 1
       counter = 0

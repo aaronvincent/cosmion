@@ -13,7 +13,7 @@ Usage:
     python script.py <folder_number> <start_file> <end_file> <output_file> <dm_mass>
 
 Arguments:
-    folder_number : str   -> Name of the 'run#/' folder containing the input files.
+    folder_number : str   -> Index of the 'run#/' folder containing the input files.
     start_file    : int   -> Index of the first 'positions#.dat' file to process.
     end_file      : int   -> Index of the last 'positions#.dat' file to process.
     output_file   : str   -> Name of the output file to save the processed data.
@@ -48,7 +48,7 @@ GeV = 1.78266e-24   # Conversion factor for GeV to g
 mdm = float(sys.argv[5]) * GeV  # Dark matter particle mass in g (read from command-line argument)
 
 # Read the file names and output file name from the command line.
-fileFolder = sys.argv[1]       # Folder name for 'run#/'
+fileFolder = sys.argv[1]       # Index for 'run#/' folder
 fileStart = int(sys.argv[2])   # First index of 'positions#.dat' file
 fileEnd = int(sys.argv[3])     # Last index of 'positions#.dat' file
 fileRange = np.arange(fileStart, fileEnd + 1, 1)  # Range of file indices
