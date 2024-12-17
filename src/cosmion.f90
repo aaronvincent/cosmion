@@ -19,9 +19,8 @@ character*100 :: massin, sigmain, Nstepsin, FileNameIn, CrossSectionIn, Particle
 double precision :: xi(3),vi(3),x(3),v(3),vout(3),xsamp(3),vsamp(3)
 double precision :: r,time,start,finish,weight !the DM coordinates
 double precision :: species_precision
-character*300 :: outfile, reprofile,spindepin, starfile
+character*300 :: outfile, spindepin, starfile
 ! logical antemp, andens, anpot
-! double precision mdm
 
  ! ----- variables for portable seed setting -----
   INTEGER :: i_seed
@@ -55,12 +54,12 @@ DEALLOCATE(a_seed)
 ! call random_seed
 
 
-CALL GET_COMMAND_ARGUMENT(1,massin)   !first, read in the two values
-CALL GET_COMMAND_ARGUMENT(2,sigmain)
-CALL GET_COMMAND_ARGUMENT(3,Nstepsin)   !first, read in the two values
-CALL GET_COMMAND_ARGUMENT(4,FileNameIn)
-CALL GET_COMMAND_ARGUMENT(5,ParticleIn)
-CALL GET_COMMAND_ARGUMENT(6,CrossSectionIn)
+CALL GET_COMMAND_ARGUMENT(1,massin)   !particle mass
+CALL GET_COMMAND_ARGUMENT(2,sigmain)   !cross-section
+CALL GET_COMMAND_ARGUMENT(3,Nstepsin)   !number of collisions
+CALL GET_COMMAND_ARGUMENT(4,FileNameIn)   !output file name
+CALL GET_COMMAND_ARGUMENT(5,ParticleIn)   !type of particle collision
+CALL GET_COMMAND_ARGUMENT(6,CrossSectionIn)   !cross-section type
 print*, "m = ", trim(massin), " GeV"
 ! massin = trim(massin)
 
@@ -97,6 +96,7 @@ ELSE
   STOP
 ENDIF
 
+! select constant, velocity-dependent or momentum-dependent cross-section
 IF(CrossSectionIn == 'const')THEN
   crossSection = 1
   print*, "Constant cross section"
@@ -169,16 +169,13 @@ if (nucleon) then
   end if
 
 
-!wipe the trajectory history
-! open(99,file=reprofile,status='replace')
-! close(99)
 
 open(94,file = outfile)
 
 kepflag = 0 
 
 call spawn(xi,vi)
-! Uncomment the folloiwng and adjust if you want to spawn at a specific place, for testing
+! Uncomment the following and adjust if you want to spawn at a specific place, for testing
 ! xi = (/4576709851.6707411d0,       -0.d0 ,      -0.d0 /)
 ! vi = (/-6068728.6153145507d0,        96408852.454135373d0,       0.d0     /)
 ! xi = (/50.d9,       0.12d0 ,      -2.0402393d0 /)
@@ -265,7 +262,6 @@ do i = 1,Nsteps
         xi = x
         vi = v
 
-     
 
         !print*,"r before keplerian ",sqrt(sum(x**2)), "v ", v
         if (anPot) then
