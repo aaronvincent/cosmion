@@ -267,7 +267,7 @@ module star
     allocate(tab_mencl(nlines))
     allocate(tab_r(nlines))
     allocate(tab_starrho(nlines))
-    allocate(tab_mfr(nlines,nspecies)) !29we could just allocate niso, but this leads to problems
+    allocate(tab_mfr(nlines,nspecies)) ! 29 for Serenelli files
     allocate(tab_vesc(nlines))
     allocate(tab_phi(nlines))
     allocate(tab_dr(nlines))
