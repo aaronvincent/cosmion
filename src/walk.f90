@@ -527,9 +527,7 @@ if (anPot) then
       yarr(1) = 0.d0 !initial time
       yarr(2) = r
 
-      ! r  = sqrt(sum(xin**2))
       vx = sqrt(sum(vin**2))
-      ! vr = sum(vin*xin)/r
       yarr(3) = vr !velocity in R direction
 
 
@@ -621,7 +619,6 @@ if (anPot) then
     vout(1) = sqrt(dabs(2.*eoverm - ell**2/Rsun**2 - 2.*potential(Rsun))) !get radial velocity from position and conservation of energy
     
     ! print*, "vr from conservation ", vout(1), "vr from integrator ", yarr(2)
-    ! stop
 
   vout(2) = ell/xout(1) ! stick tangential velocity in the y direction
   vout(3) = 0.d0
@@ -816,7 +813,6 @@ vnuc = a*(stnuc*cos(phi_nuc)*e1 + stnuc*sin(phi_nuc)*e2 + ctnuc*e3)
 ! close(92)
 
     ! 2) Boost to CM frame
-! print*, nucleon
 if (nucleon) then
 
     s = (mdm*v + AtomicNumber(niso)*mnucg*vnuc)/(mdm+AtomicNumber(niso)*mnucg)
@@ -1086,7 +1082,7 @@ end subroutine pets_sph
     yprime(2) = (gofr(r) + ell**2/r**3) ! dv/dt
     yprime(3) = 0.d0
     ! print*, 'r = ', r, 'time = ', y(1),'vr = ', y(2),'gofr,', gofr(r)
-    ! ! print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
+    ! print*,"E is ", .5/yprime**2 + ell**2/r**2/2.d0+potential(r),' and should be ', eoverm
     ! open(92,file = "inching.dat",access='append')
     ! write(92,*) r, potential(r),y(1),y(2),ell, eoverm
     ! close(92)
@@ -1190,8 +1186,6 @@ subroutine omeganuc(xin,vin,omega_out,niso) !,omegaprime)
   ! The following conditional checks if the particle is inside the star.
   ! If it left the star, it raises a flag to be detected after the integration is complete.
   if (r .ge. Rsun) then
-    !omega_out = 0.0
-    !omega_out = omega_out/omega_out
     outside_flag = 1
     return
   end if
@@ -1275,13 +1269,7 @@ subroutine omeganuc(xin,vin,omega_out,niso) !,omegaprime)
         print*,"ERROR, omega for nucleons"
         stop
       end if
-      !the next bit is me not understanding wtf is going on. I made derivatives yay. Ignore
-      ! accel = -OmegaSHO**2*xin
 
-      ! yprime = 2.d0*sum(accel*vin)/mdm !y^2'
-      ! yprime = .5/y
-      ! omegaprime = dndr(r,1)/ndensity(r,1)*omega_out + yprime*wprefactor*(erf(y)*(1.-1./y**2) + exp(-y**2)/sqrt(pi)/y)
-      ! print*,'y ', y, 'yprime ', yprime
     else
       ! Compute the sum of the omegas for each element.
       omega_out = 0.d0
@@ -1638,21 +1626,6 @@ subroutine keplerian(xin,vin,xout,vout,tout)
     c = 2.*atanh((e-1.)*tan(theta/2.)/sqrt(cmplx(e**2-1.)))/sqrt(cmplx(e**2-1.))
     area = smaj**2*(e**2-1.)*(e*sin(theta)/(e*cos(theta)+1.)-c)
     tout = (1.-area/areatot)*period
-    ! print*,"a=",smaj
-    ! print*,"e=",e
-    ! print*,"theta=",theta
-    ! print*,"norm=",norm
-    ! print*,"xin=",xin
-    ! print*,"vin=",vin
-    ! print*,"vrin=", vr
-    ! print*,"xout=",xout
-    ! print*,"vout=",vout
-    ! print*,"vr= ",  sum(xout*vout) / sqrt(sum(xout*xout))
-    !print*,"area",area
-    !print*,"areatot",areatot
-    !print*,"tout=",tout
-    !print*,"tfrac=",tout/period
-    !print*,""
 
     ! The below is Hannah's method of finding the position and time of re-entry.
     ! It was used to verify that the above method is correct.
